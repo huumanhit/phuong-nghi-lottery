@@ -1,5 +1,105 @@
 export type Region = "mb" | "mt" | "mn";
 
+// ---------------------------------------------------------------------------
+// Station types
+// ---------------------------------------------------------------------------
+
+export interface StationResult {
+  stationId: string;    // slug: "ben-tre"
+  stationName: string;  // display: "Bến Tre"
+  results: LotteryResult;
+}
+
+export interface DailyRegionResult {
+  date: string;         // "DD/MM/YYYY"
+  region: Region;
+  stations: StationResult[];
+  error: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Station schedules: day-of-week (0=Sun) → station names
+// ---------------------------------------------------------------------------
+
+export const STATION_SCHEDULE: Record<Region, Record<number, string[]>> = {
+  mb: {
+    0: ["Hà Nội"], 1: ["Hà Nội"], 2: ["Hà Nội"],
+    3: ["Hà Nội"], 4: ["Hà Nội"], 5: ["Hà Nội"], 6: ["Hà Nội"],
+  },
+  mt: {
+    0: ["Khánh Hòa", "Thừa Thiên Huế"],
+    1: ["Thừa Thiên Huế", "Phú Yên"],
+    2: ["Đắk Lắk", "Quảng Nam"],
+    3: ["Đà Nẵng", "Khánh Hòa"],
+    4: ["Bình Định", "Quảng Trị", "Quảng Bình"],
+    5: ["Gia Lai", "Ninh Thuận"],
+    6: ["Đà Nẵng", "Quảng Ngãi", "Đắk Nông"],
+  },
+  mn: {
+    0: ["Tiền Giang", "Kiên Giang", "Đà Lạt"],
+    1: ["Long An", "Đồng Tháp", "Cần Thơ"],
+    2: ["Bến Tre", "Vũng Tàu", "Bạc Liêu"],
+    3: ["Đồng Nai", "Cần Thơ", "Sóc Trăng"],
+    4: ["An Giang", "Bình Thuận", "Bình Dương"],
+    5: ["Vĩnh Long", "Bình Dương", "Trà Vinh"],
+    6: ["TP. HCM", "Long An", "Bình Phước", "Hậu Giang"],
+  },
+};
+
+// ---------------------------------------------------------------------------
+// All stations flat list (for TicketChecker dropdown)
+// ---------------------------------------------------------------------------
+
+export const ALL_STATIONS: Array<{ id: string; name: string; region: Region }> = [
+  // Miền Bắc
+  { id: "ha-noi",        name: "Hà Nội",          region: "mb" },
+  // Miền Trung
+  { id: "da-nang",       name: "Đà Nẵng",          region: "mt" },
+  { id: "khanh-hoa",     name: "Khánh Hòa",        region: "mt" },
+  { id: "thua-thien-hue",name: "Thừa Thiên Huế",   region: "mt" },
+  { id: "phu-yen",       name: "Phú Yên",           region: "mt" },
+  { id: "dak-lak",       name: "Đắk Lắk",           region: "mt" },
+  { id: "quang-nam",     name: "Quảng Nam",         region: "mt" },
+  { id: "binh-dinh",     name: "Bình Định",         region: "mt" },
+  { id: "quang-tri",     name: "Quảng Trị",         region: "mt" },
+  { id: "quang-binh",    name: "Quảng Bình",        region: "mt" },
+  { id: "gia-lai",       name: "Gia Lai",            region: "mt" },
+  { id: "ninh-thuan",    name: "Ninh Thuận",        region: "mt" },
+  { id: "quang-ngai",    name: "Quảng Ngãi",        region: "mt" },
+  { id: "dak-nong",      name: "Đắk Nông",          region: "mt" },
+  // Miền Nam
+  { id: "tp-hcm",        name: "TP. HCM",           region: "mn" },
+  { id: "dong-nai",      name: "Đồng Nai",          region: "mn" },
+  { id: "ben-tre",       name: "Bến Tre",           region: "mn" },
+  { id: "vung-tau",      name: "Vũng Tàu",          region: "mn" },
+  { id: "bac-lieu",      name: "Bạc Liêu",          region: "mn" },
+  { id: "tien-giang",    name: "Tiền Giang",        region: "mn" },
+  { id: "kien-giang",    name: "Kiên Giang",        region: "mn" },
+  { id: "da-lat",        name: "Đà Lạt",            region: "mn" },
+  { id: "long-an",       name: "Long An",           region: "mn" },
+  { id: "dong-thap",     name: "Đồng Tháp",         region: "mn" },
+  { id: "can-tho",       name: "Cần Thơ",           region: "mn" },
+  { id: "soc-trang",     name: "Sóc Trăng",         region: "mn" },
+  { id: "an-giang",      name: "An Giang",           region: "mn" },
+  { id: "binh-thuan",    name: "Bình Thuận",        region: "mn" },
+  { id: "binh-duong",    name: "Bình Dương",        region: "mn" },
+  { id: "vinh-long",     name: "Vĩnh Long",         region: "mn" },
+  { id: "tra-vinh",      name: "Trà Vinh",          region: "mn" },
+  { id: "binh-phuoc",    name: "Bình Phước",        region: "mn" },
+  { id: "hau-giang",     name: "Hậu Giang",         region: "mn" },
+];
+
+/** Slugify a Vietnamese station name */
+export function stationSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 export interface LotteryResult {
   special: string[];
   first: string[];

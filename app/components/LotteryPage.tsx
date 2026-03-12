@@ -3,262 +3,546 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Region,
   LotteryResult,
-  generateMBResult,
-  generateMTResult,
-  generateMNResult,
+  StationResult,
+  DailyRegionResult,
   extractLoNumbers,
   PRIZE_ORDER,
 } from "../lib/lotteryData";
 import CountdownTimer from "./CountdownTimer";
-import LotteryTable from "./LotteryTable";
+import MultiStationTable from "./MultiStationTable";
 import LotoGrid from "./LotoGrid";
 import RegionTabs from "./RegionTabs";
 
-function getCurrentDateVN(): string {
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function getTodayVN(): string {
   const d = new Date();
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
+
+function isoToVN(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+/** Returns last 5 days as tab descriptors, today last */
+function getLast5Days(): Array<{ iso: string; label: string; isToday: boolean }> {
+  const result = [];
+  const now = new Date();
+  for (let i = 4; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const label =
+      i === 0
+        ? `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`
+        : `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+    result.push({ iso, label, isToday: i === 0 });
+  }
+  return result;
+}
+
+function emptyResult(): LotteryResult {
+  return {
+    special: [], first: [], second: [], third: [],
+    fourth: [], fifth: [], sixth: [], seventh: [],
+  };
+}
+
+function mergeStationResults(stations: StationResult[]): LotteryResult {
+  if (stations.length === 0) return emptyResult();
+  if (stations.length === 1) return stations[0].results;
+  const merged = emptyResult();
+  for (const key of PRIZE_ORDER) {
+    merged[key as keyof LotteryResult] = stations.flatMap(
+      (s) => s.results[key as keyof LotteryResult] ?? []
+    );
+  }
+  return merged;
+}
+
 function getRevealSequence(result: LotteryResult): { prize: string; idx: number }[] {
   const seq: { prize: string; idx: number }[] = [];
-  // Reveal from seventh to special (like real lottery)
   const reversed = [...PRIZE_ORDER].reverse();
   for (const prize of reversed) {
     const nums = result[prize as keyof LotteryResult];
-    for (let i = 0; i < nums.length; i++) {
-      seq.push({ prize, idx: i });
-    }
+    for (let i = 0; i < nums.length; i++) seq.push({ prize, idx: i });
   }
   return seq;
 }
 
-export default function LotteryPage() {
-  const [region, setRegion] = useState<Region>("mb");
-  const [results, setResults] = useState<Record<Region, LotteryResult>>({
-    mb: generateMBResult(),
-    mt: generateMTResult(),
-    mn: generateMNResult(),
-  });
-  const [revealed, setRevealed] = useState<Record<Region, Set<string>>>({
-    mb: new Set(),
-    mt: new Set(),
-    mn: new Set(),
-  });
-  const [isLive, setIsLive] = useState(false);
-  const [isComplete, setIsComplete] = useState<Record<Region, boolean>>({
-    mb: false,
-    mt: false,
-    mn: false,
-  });
-  const [partialResult, setPartialResult] = useState<Record<Region, Partial<LotteryResult>>>({
-    mb: {},
-    mt: {},
-    mn: {},
-  });
-  const [seqIdx, setSeqIdx] = useState<Record<Region, number>>({ mb: 0, mt: 0, mn: 0 });
-  const sequenceRef = useRef<Record<Region, { prize: string; idx: number }[]>>({
-    mb: [],
-    mt: [],
-    mn: [],
-  });
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+/** Build a StationResult from a partial (animation) result */
+function buildAnimatedStation(partial: Partial<LotteryResult>): StationResult {
+  return {
+    stationId: "ha-noi",
+    stationName: "Hà Nội",
+    results: {
+      special: partial.special ?? [],
+      first:   partial.first   ?? [],
+      second:  partial.second  ?? [],
+      third:   partial.third   ?? [],
+      fourth:  partial.fourth  ?? [],
+      fifth:   partial.fifth   ?? [],
+      sixth:   partial.sixth   ?? [],
+      seventh: partial.seventh ?? [],
+    },
+  };
+}
 
-  // Build reveal sequence on mount / region change
+const REGION_NAMES: Record<Region, string> = {
+  mb: "MIỀN BẮC",
+  mt: "MIỀN TRUNG",
+  mn: "MIỀN NAM",
+};
+
+const DRAW_TIMES: Record<Region, string> = {
+  mb: "18:15",
+  mt: "17:30",
+  mn: "16:45",
+};
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: Region }) {
+  const [region, setRegion] = useState<Region>(initialRegion);
+
+  // Station data per region
+  const [stationData, setStationData] = useState<Record<Region, StationResult[]>>({
+    mb: [], mt: [], mn: [],
+  });
+  const [regionDates, setRegionDates]   = useState<Partial<Record<Region, string>>>({});
+  const [regionLoading, setRegionLoading] = useState<Record<Region, boolean>>({
+    mb: true, mt: false, mn: false,
+  });
+  const [regionError, setRegionError]   = useState<Partial<Record<Region, string>>>({});
+  const fetchedRef = useRef<Set<Region>>(new Set());
+
+  // MB animation state
+  const [partialMb, setPartialMb]     = useState<Partial<LotteryResult>>({});
+  const [revealedMb, setRevealedMb]   = useState<Set<string>>(new Set());
+  const [isLive, setIsLive]           = useState(false);
+  const [isCompleteMb, setIsCompleteMb] = useState(false);
+  const [seqIdxMb, setSeqIdxMb]       = useState(0);
+  const sequenceMbRef = useRef<{ prize: string; idx: number }[]>([]);
+  const intervalRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Date state — "selected" drives which tab is active
+  const [selectedDate, setSelectedDate]   = useState<string>("");   // "" = today (latest)
+  const [dateStations, setDateStations]   = useState<StationResult[] | null>(null);
+  const [dateLoading, setDateLoading]     = useState(false);
+  const [dateError, setDateError]         = useState<string | null>(null);
+
+  // -------------------------------------------------------------------------
+  // Fetch latest for a region
+  // -------------------------------------------------------------------------
+  const fetchRegion = useCallback(async (r: Region) => {
+    setRegionLoading((prev) => ({ ...prev, [r]: true }));
+    setRegionError((prev) => { const n = { ...prev }; delete n[r]; return n; });
+
+    try {
+      const res = await fetch(`/api/lottery/daily?region=${r}`);
+      if (!res.ok) throw new Error(`Lỗi máy chủ: HTTP ${res.status}`);
+      const data = (await res.json()) as DailyRegionResult;
+      if (data.error && data.stations.length === 0) throw new Error(data.error);
+
+      setStationData((prev) => ({ ...prev, [r]: data.stations }));
+      setRegionDates((prev)  => ({ ...prev, [r]: data.date }));
+
+      if (r === "mb" && data.stations.length > 0) {
+        sequenceMbRef.current = getRevealSequence(data.stations[0].results);
+      }
+      fetchedRef.current.add(r);
+    } catch (err) {
+      setRegionError((prev) => ({
+        ...prev,
+        [r]: err instanceof Error ? err.message : "Không thể tải dữ liệu",
+      }));
+    } finally {
+      setRegionLoading((prev) => ({ ...prev, [r]: false }));
+    }
+  }, []);
+
+  useEffect(() => { fetchRegion("mb"); }, [fetchRegion]);
+
   useEffect(() => {
-    const regionKeys: Region[] = ["mb", "mt", "mn"];
-    regionKeys.forEach((r) => {
-      sequenceRef.current[r] = getRevealSequence(results[r]);
-    });
-  }, [results]);
+    if (stationData.mb.length > 0)
+      sequenceMbRef.current = getRevealSequence(stationData.mb[0].results);
+  }, [stationData.mb]);
 
-  const startLive = useCallback((r: Region) => {
+  // -------------------------------------------------------------------------
+  // Fetch by date
+  // -------------------------------------------------------------------------
+  const fetchByDate = useCallback(async (r: Region, dateIso: string) => {
+    setDateLoading(true);
+    setDateError(null);
+    setDateStations(null);
+    try {
+      const res = await fetch(`/api/lottery/daily?region=${r}&date=${dateIso}`);
+      if (!res.ok) throw new Error(`Lỗi máy chủ: HTTP ${res.status}`);
+      const data = (await res.json()) as DailyRegionResult;
+      if (data.error && data.stations.length === 0) throw new Error(data.error);
+      setDateStations(data.stations);
+    } catch (err) {
+      setDateError(err instanceof Error ? err.message : "Không thể tải dữ liệu");
+    } finally {
+      setDateLoading(false);
+    }
+  }, []);
+
+  const handleDateChange = useCallback((iso: string) => {
+    setSelectedDate(iso);
+    if (!iso) { setDateStations(null); setDateError(null); return; }
+    fetchByDate(region, iso);
+  }, [region, fetchByDate]);
+
+  useEffect(() => {
+    if (selectedDate) fetchByDate(region, selectedDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [region]);
+
+  // -------------------------------------------------------------------------
+  // Tab change
+  // -------------------------------------------------------------------------
+  const handleRegionChange = useCallback((r: Region) => {
+    if (intervalRef.current) { clearInterval(intervalRef.current); setIsLive(false); }
+    setRegion(r);
+    if (!fetchedRef.current.has(r)) fetchRegion(r);
+  }, [fetchRegion]);
+
+  // -------------------------------------------------------------------------
+  // MB live animation
+  // -------------------------------------------------------------------------
+  const startLive = useCallback(() => {
+    const mbResult = stationData.mb[0]?.results ?? emptyResult();
     setIsLive(true);
-    setIsComplete((prev) => ({ ...prev, [r]: false }));
-    setPartialResult((prev) => ({ ...prev, [r]: {} }));
-    setRevealed((prev) => ({ ...prev, [r]: new Set() }));
-    setSeqIdx((prev) => ({ ...prev, [r]: 0 }));
-
+    setIsCompleteMb(false);
+    setPartialMb({});
+    setRevealedMb(new Set());
+    setSeqIdxMb(0);
     if (intervalRef.current) clearInterval(intervalRef.current);
 
     let idx = 0;
     intervalRef.current = setInterval(() => {
-      const seq = sequenceRef.current[r];
+      const seq = sequenceMbRef.current;
       if (idx >= seq.length) {
         clearInterval(intervalRef.current!);
         setIsLive(false);
-        setIsComplete((prev) => ({ ...prev, [r]: true }));
-        // Show full result
-        setPartialResult((prev) => ({ ...prev, [r]: results[r] }));
+        setIsCompleteMb(true);
+        setPartialMb(mbResult);
         return;
       }
-
       const { prize, idx: numIdx } = seq[idx];
-      const fullNums = results[r][prize as keyof LotteryResult];
-      const revealKey = `${prize}-${numIdx}`;
-
-      setPartialResult((prev) => {
-        const current = { ...prev[r] };
-        const existing: string[] = (current[prize as keyof LotteryResult] as string[]) ?? [];
-        const updated = [...existing];
-        updated[numIdx] = fullNums[numIdx];
-        return {
-          ...prev,
-          [r]: { ...current, [prize]: updated },
-        };
+      const fullNums = mbResult[prize as keyof LotteryResult];
+      setPartialMb((prev) => {
+        const cur = { ...prev };
+        const ex: string[] = (cur[prize as keyof LotteryResult] as string[]) ?? [];
+        const upd = [...ex];
+        upd[numIdx] = fullNums[numIdx];
+        return { ...cur, [prize]: upd };
       });
-
-      setRevealed((prev) => {
-        const s = new Set(prev[r]);
-        s.add(revealKey);
-        return { ...prev, [r]: s };
+      setRevealedMb((prev) => {
+        const s = new Set(prev); s.add(`${prize}-${numIdx}`); return s;
       });
-
       idx++;
-      setSeqIdx((prev) => ({ ...prev, [r]: idx }));
+      setSeqIdxMb(idx);
     }, 350);
-  }, [results]);
+  }, [stationData.mb]);
 
-  const resetRegion = useCallback((r: Region) => {
+  const resetMb = useCallback(async () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     setIsLive(false);
-    const newResult = r === "mb" ? generateMBResult() : r === "mt" ? generateMTResult() : generateMNResult();
-    setResults((prev) => ({ ...prev, [r]: newResult }));
-    setPartialResult((prev) => ({ ...prev, [r]: {} }));
-    setRevealed((prev) => ({ ...prev, [r]: new Set() }));
-    setIsComplete((prev) => ({ ...prev, [r]: false }));
-    setSeqIdx((prev) => ({ ...prev, [r]: 0 }));
-    sequenceRef.current[r] = getRevealSequence(newResult);
-  }, []);
+    setPartialMb({});
+    setRevealedMb(new Set());
+    setIsCompleteMb(false);
+    setSeqIdxMb(0);
+    fetchedRef.current.delete("mb");
+    await fetchRegion("mb");
+  }, [fetchRegion]);
 
   useEffect(() => {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, []);
 
-  const currentPartial = partialResult[region];
-  const currentRevealed = revealed[region];
-  const currentComplete = isComplete[region];
-  const loNumbers = extractLoNumbers(
-    isComplete[region] ? results[region] : (currentPartial as LotteryResult)
-  );
+  // -------------------------------------------------------------------------
+  // Derived display values
+  // -------------------------------------------------------------------------
+  const isDateMode = selectedDate !== "";
+  const days = getLast5Days();
 
-  const totalNums = sequenceRef.current[region]?.length ?? 0;
-  const progress = totalNums > 0 ? Math.round((seqIdx[region] / totalNums) * 100) : 0;
+  const currentLoading = isDateMode ? dateLoading : regionLoading[region];
+  const currentError   = isDateMode ? dateError   : (regionError[region] ?? null);
+
+  // Build stations array to render
+  // Only use animated partial when isLive (user is watching step-by-step replay)
+  const displayStations: StationResult[] = (() => {
+    if (isDateMode) return dateStations ?? [];
+    if (region === "mb") {
+      if (isLive) return [buildAnimatedStation(partialMb)];
+      return stationData.mb;  // show full results immediately on load
+    }
+    return stationData[region];
+  })();
+
+  const mbHasData = stationData.mb.length > 0 &&
+    (stationData.mb[0]?.results.special.length ?? 0) > 0;
+  const mbComplete = isDateMode ? true : isCompleteMb;
+
+  const totalNums = sequenceMbRef.current.length;
+  const progress  = totalNums > 0 ? Math.round((seqIdxMb / totalNums) * 100) : 0;
+
+  const today    = getTodayVN();
+  const drawDate = isDateMode
+    ? (selectedDate ? isoToVN(selectedDate) : null)
+    : (regionDates[region] ?? null);
+  const isOldData = drawDate !== null && drawDate !== today;
+
+  // LotoGrid: combined lo numbers
+  const loSource: LotteryResult = region === "mb"
+    ? ((isCompleteMb && !isDateMode)
+        ? (stationData.mb[0]?.results ?? emptyResult())
+        : { ...emptyResult(), ...partialMb } as LotteryResult)
+    : mergeStationResults(displayStations);
+  const loNumbers = extractLoNumbers(loSource);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        {/* Date + Timer Row */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
-          <div>
-            <h1 className="text-xl font-bold text-red-800">Kết Quả Xổ Số Hôm Nay</h1>
-            <p className="text-gray-500 text-sm">Ngày {getCurrentDateVN()}</p>
-          </div>
+    <div className="bg-gray-50">
+      {/* ---- Page title ---- */}
+      <div className="mb-4">
+        <h1 className="text-lg font-extrabold text-red-800 uppercase tracking-wide">
+          Trực Tiếp Xổ Số {REGION_NAMES[region]}
+        </h1>
+        <p className="text-gray-500 text-sm mt-0.5">
+          Ngày{" "}
+          <span className="font-semibold text-gray-700">
+            {isDateMode && selectedDate ? isoToVN(selectedDate) : today}
+          </span>
+          {!isDateMode && isOldData && (
+            <span className="ml-2 text-xs text-orange-500 font-semibold">
+              (đang chờ kết quả hôm nay)
+            </span>
+          )}
+        </p>
+      </div>
+
+      {/* ---- Date tab pills ---- */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 mb-3 scrollbar-none">
+        {days.map((day) => {
+          const isActive = day.isToday ? !selectedDate : selectedDate === day.iso;
+          return (
+            <button
+              key={day.iso}
+              onClick={() => handleDateChange(day.isToday ? "" : day.iso)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                isActive
+                  ? "bg-red-600 text-white shadow"
+                  : "bg-white text-gray-600 border border-gray-200 hover:border-red-300 hover:text-red-600"
+              }`}
+            >
+              {day.label}
+            </button>
+          );
+        })}
+        <div className="ml-auto flex-shrink-0">
           <CountdownTimer isLive={isLive} />
         </div>
+      </div>
 
-        {/* Main content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: Table */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="bg-red-700 px-4 py-3 flex items-center justify-between">
-                <span className="text-white font-bold text-lg">Kết Quả Xổ Số</span>
-                {isLive && (
-                  <span className="bg-green-400 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">
+      {/* ---- Waiting banner ---- */}
+      {!isDateMode && isOldData && !isLive && !currentLoading && (
+        <div className="mb-3 flex items-center gap-2 bg-green-50 border border-green-300 rounded-lg px-4 py-2.5">
+          <span className="text-green-600 text-lg">🕐</span>
+          <div>
+            <p className="text-green-700 font-semibold text-sm">
+              Đang chờ Xổ Số {REGION_NAMES[region]} lúc {DRAW_TIMES[region]}
+            </p>
+            <p className="text-green-600 text-xs">Hiển thị kết quả gần nhất</p>
+          </div>
+        </div>
+      )}
+
+      {/* ---- Main grid ---- */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        {/* Left: result table */}
+        <div className="lg:col-span-2">
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
+
+            {/* Panel header */}
+            <div className="bg-red-700 px-4 py-3 flex items-center justify-between">
+              <span className="text-white font-bold text-base">
+                XSKT {REGION_NAMES[region]} — Ngày {isDateMode && selectedDate ? isoToVN(selectedDate) : (drawDate ?? today)}
+              </span>
+              <div className="flex items-center gap-2">
+                {currentLoading && (
+                  <span className="bg-yellow-400 text-red-800 text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+                    ĐANG TẢI
+                  </span>
+                )}
+                {!currentLoading && isLive && (
+                  <span className="bg-green-400 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
                     LIVE
                   </span>
                 )}
-                {currentComplete && (
-                  <span className="bg-yellow-400 text-red-800 text-xs font-bold px-3 py-1 rounded-full">
-                    HOÀN TẤT
+                {!currentLoading && displayStations.length > 0 && !isLive && (
+                  <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                    ● KẾT QUẢ
                   </span>
                 )}
               </div>
+            </div>
 
-              <div className="p-4">
-                <RegionTabs active={region} onChange={setRegion} />
+            {/* Region tabs */}
+            <div className="px-3 pt-3">
+              <RegionTabs active={region} onChange={handleRegionChange} />
+            </div>
 
-                {/* Progress bar */}
-                {isLive && (
-                  <div className="mb-3">
-                    <div className="flex justify-between text-xs text-gray-500 mb-1">
-                      <span>Đang quay...</span>
-                      <span>{progress}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-1.5">
+            <div className="p-3">
+              {/* Error */}
+              {currentError && (
+                <div className="mb-3 px-3 py-2 bg-red-50 border border-red-300 rounded-lg text-red-700 text-sm flex items-center gap-2">
+                  <span className="font-bold">⚠</span>
+                  <span>{currentError}</span>
+                  {!isDateMode && region === "mb" && (
+                    <button onClick={resetMb} className="ml-auto text-xs underline">Thử lại</button>
+                  )}
+                </div>
+              )}
+
+              {/* Loading */}
+              {currentLoading ? (
+                <div className="flex flex-col items-center justify-center py-14 gap-3 text-gray-400">
+                  <svg className="animate-spin h-8 w-8 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  <span className="text-sm">Đang tải kết quả xổ số...</span>
+                </div>
+              ) : (
+                <>
+                  {/* MB progress bar — only during replay */}
+                  {region === "mb" && isLive && (
+                    <div className="mb-3 w-full bg-gray-200 rounded-full h-1.5">
                       <div
                         className="bg-red-600 h-1.5 rounded-full transition-all duration-300"
                         style={{ width: `${progress}%` }}
                       />
                     </div>
-                  </div>
-                )}
+                  )}
 
-                <LotteryTable
-                  result={currentPartial}
-                  revealed={currentRevealed}
-                  isComplete={currentComplete}
-                />
+                  {/* Multi-station table */}
+                  {displayStations.length > 0 ? (
+                    <MultiStationTable
+                      stations={displayStations}
+                      revealed={region === "mb" ? revealedMb : new Set()}
+                      isComplete={region === "mb" ? mbComplete : true}
+                    />
+                  ) : !currentError ? (
+                    <div className="py-12 text-center text-gray-400">
+                      <p className="text-sm">Chưa có kết quả hôm nay</p>
+                    </div>
+                  ) : null}
 
-                {/* Controls */}
-                <div className="flex gap-3 mt-4">
-                  <button
-                    onClick={() => startLive(region)}
-                    disabled={isLive}
-                    className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all ${
-                      isLive
-                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                        : "bg-red-700 hover:bg-red-800 text-white shadow-md hover:shadow-lg active:scale-95"
-                    }`}
-                  >
-                    {isLive ? "Đang quay..." : currentComplete ? "▶ Quay lại" : "▶ Bắt đầu quay"}
-                  </button>
-                  <button
-                    onClick={() => resetRegion(region)}
-                    disabled={isLive}
-                    className={`px-5 py-2.5 rounded-lg font-bold text-sm border-2 transition-all ${
-                      isLive
-                        ? "border-gray-200 text-gray-400 cursor-not-allowed"
-                        : "border-red-700 text-red-700 hover:bg-red-50 active:scale-95"
-                    }`}
-                  >
-                    Làm mới
-                  </button>
-                </div>
-              </div>
+                  {/* MB controls — only Refresh + optional Replay */}
+                  {!isDateMode && region === "mb" && (
+                    <div className="flex items-center justify-between mt-3 gap-3">
+                      {/* Replay link — subtle, not prominent */}
+                      {mbHasData && !isLive && (
+                        <button
+                          onClick={startLive}
+                          className="text-xs text-gray-400 hover:text-red-600 underline transition-colors"
+                        >
+                          ▶ Xem quay số lại
+                        </button>
+                      )}
+                      {isLive && (
+                        <span className="text-xs text-green-600 font-semibold animate-pulse">
+                          Đang quay... {progress}%
+                        </span>
+                      )}
+                      <button
+                        onClick={resetMb}
+                        disabled={isLive || regionLoading.mb}
+                        className={`ml-auto px-4 py-2 rounded-lg font-bold text-sm border-2 transition-all ${
+                          isLive || regionLoading.mb
+                            ? "border-gray-200 text-gray-400 cursor-not-allowed"
+                            : "border-red-700 text-red-700 hover:bg-red-50 active:scale-95"
+                        }`}
+                      >
+                        Làm mới
+                      </button>
+                    </div>
+                  )}
+
+                  {/* MT/MN refresh */}
+                  {!isDateMode && region !== "mb" && (
+                    <div className="mt-3">
+                      <button
+                        onClick={() => { fetchedRef.current.delete(region); fetchRegion(region); }}
+                        disabled={regionLoading[region]}
+                        className={`w-full py-2 rounded-lg font-bold text-sm border-2 transition-all ${
+                          regionLoading[region]
+                            ? "border-gray-200 text-gray-400 cursor-not-allowed"
+                            : "border-red-700 text-red-700 hover:bg-red-50 active:scale-95"
+                        }`}
+                      >
+                        Tải lại
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
+        </div>
 
-          {/* Right: Loto Grid */}
-          <div className="lg:col-span-1">
-            <LotoGrid hitNumbers={loNumbers} />
+        {/* Right: LotoGrid + info */}
+        <div className="lg:col-span-1">
+          <LotoGrid hitNumbers={loNumbers} />
 
-            {/* Info box */}
-            <div className="mt-4 bg-white rounded-xl border border-red-200 shadow-md p-4 text-sm text-gray-600">
-              <h4 className="font-bold text-red-700 mb-2">Thông Tin</h4>
-              <ul className="space-y-1 text-xs">
-                <li className="flex justify-between">
-                  <span>Khu vực:</span>
-                  <span className="font-semibold text-red-700">
-                    {region === "mb" ? "Miền Bắc" : region === "mt" ? "Miền Trung" : "Miền Nam"}
-                  </span>
-                </li>
-                <li className="flex justify-between">
-                  <span>Giờ quay:</span>
-                  <span className="font-semibold">18:15</span>
-                </li>
-                <li className="flex justify-between">
-                  <span>Trạng thái:</span>
-                  <span className={`font-semibold ${isLive ? "text-green-600" : currentComplete ? "text-blue-600" : "text-gray-500"}`}>
-                    {isLive ? "Đang quay" : currentComplete ? "Hoàn tất" : "Chờ quay"}
-                  </span>
-                </li>
-                <li className="flex justify-between">
-                  <span>Số lô về:</span>
-                  <span className="font-semibold text-red-700">{loNumbers.size}</span>
-                </li>
-              </ul>
-            </div>
+          <div className="mt-4 bg-white rounded-xl border border-red-200 shadow p-4 text-sm text-gray-600">
+            <h4 className="font-bold text-red-700 mb-2">Thông Tin</h4>
+            <ul className="space-y-1 text-xs">
+              <li className="flex justify-between">
+                <span>Khu vực:</span>
+                <span className="font-semibold text-red-700">{REGION_NAMES[region]}</span>
+              </li>
+              <li className="flex justify-between">
+                <span>Số đài hôm nay:</span>
+                <span className="font-semibold">{displayStations.length || "—"}</span>
+              </li>
+              <li className="flex justify-between">
+                <span>Ngày xổ:</span>
+                <span className="font-semibold">{drawDate ?? today}</span>
+              </li>
+              <li className="flex justify-between">
+                <span>Giờ quay:</span>
+                <span className="font-semibold">{DRAW_TIMES[region]}</span>
+              </li>
+              <li className="flex justify-between">
+                <span>Trạng thái:</span>
+                <span className={`font-semibold ${
+                  currentLoading ? "text-yellow-600"
+                  : isLive        ? "text-green-600"
+                  : displayStations.length > 0 ? "text-blue-600"
+                  : "text-gray-400"
+                }`}>
+                  {currentLoading ? "Đang tải"
+                    : isDateMode ? "Lịch sử"
+                    : isLive     ? "Đang quay"
+                    : displayStations.length > 0 ? "Hoàn tất"
+                    : "Chờ quay"}
+                </span>
+              </li>
+              <li className="flex justify-between">
+                <span>Số lô về:</span>
+                <span className="font-semibold text-red-700">{loNumbers.size}</span>
+              </li>
+            </ul>
           </div>
         </div>
       </div>
