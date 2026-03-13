@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+
+  tickets   LotteryTicket[]
+}
+
+model LotteryTicket {
+  id           String   @id @default(uuid())
+  userId       String
+  province     String
+  drawDate     DateTime
+  ticketNumber String
+  status       TicketStatus @default(pending)
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+enum TicketStatus {
+  pending
+  win
+  lose
+}

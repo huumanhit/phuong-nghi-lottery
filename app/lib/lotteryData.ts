@@ -109,6 +109,7 @@ export interface LotteryResult {
   fifth: string[];
   sixth: string[];
   seventh: string[];
+  eighth: string[];  // MN/MT only — 4 × 2-digit numbers
 }
 
 export interface RegionResult {
@@ -131,32 +132,35 @@ export function generateMBResult(): LotteryResult {
     fifth: [rnd(4), rnd(4), rnd(4), rnd(4), rnd(4), rnd(4)],
     sixth: [rnd(3), rnd(3), rnd(3)],
     seventh: [rnd(2), rnd(2), rnd(2), rnd(2)],
+    eighth: [],
   };
 }
 
 export function generateMTResult(): LotteryResult {
   return {
-    special: [rnd(5)],
+    special: [rnd(6)],
     first: [rnd(5)],
     second: [rnd(5)],
     third: [rnd(5), rnd(5)],
     fourth: [rnd(5), rnd(5), rnd(5), rnd(5), rnd(5), rnd(5), rnd(5)],
-    fifth: [rnd(4), rnd(4), rnd(4)],
-    sixth: [rnd(3), rnd(3)],
-    seventh: [rnd(2)],
+    fifth: [rnd(4)],
+    sixth: [rnd(3), rnd(3), rnd(3)],
+    seventh: [rnd(3), rnd(3), rnd(3), rnd(3)],
+    eighth: [rnd(2), rnd(2), rnd(2), rnd(2)],
   };
 }
 
 export function generateMNResult(): LotteryResult {
   return {
-    special: [rnd(5)],
+    special: [rnd(6)],
     first: [rnd(5)],
     second: [rnd(5)],
     third: [rnd(5), rnd(5)],
     fourth: [rnd(5), rnd(5), rnd(5), rnd(5), rnd(5), rnd(5), rnd(5)],
-    fifth: [rnd(4), rnd(4), rnd(4)],
-    sixth: [rnd(3), rnd(3)],
-    seventh: [rnd(2)],
+    fifth: [rnd(4)],
+    sixth: [rnd(3), rnd(3), rnd(3)],
+    seventh: [rnd(3), rnd(3), rnd(3), rnd(3)],
+    eighth: [rnd(2), rnd(2), rnd(2), rnd(2)],
   };
 }
 
@@ -169,9 +173,10 @@ export const PRIZE_LABELS: Record<string, string> = {
   fifth: "Giải Năm",
   sixth: "Giải Sáu",
   seventh: "Giải Bảy",
+  eighth: "Giải Tám",
 };
 
-export const PRIZE_ORDER = ["special", "first", "second", "third", "fourth", "fifth", "sixth", "seventh"];
+export const PRIZE_ORDER = ["special", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth"];
 
 // Total numbers revealed per prize level across all reveals
 export function getTotalNumbers(result: Partial<LotteryResult>): string[] {

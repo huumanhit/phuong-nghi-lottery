@@ -6,7 +6,7 @@ type PrizeKey = keyof LotteryResult;
 
 // Draw order: lowest prize first (matches Vietnamese live draw convention)
 const DRAW_ORDER: PrizeKey[] = [
-  "seventh", "sixth", "fifth", "fourth", "third", "second", "first", "special",
+  "eighth", "seventh", "sixth", "fifth", "fourth", "third", "second", "first", "special",
 ];
 
 const MONEY_LABELS: Record<PrizeKey, string> = {
@@ -18,6 +18,7 @@ const MONEY_LABELS: Record<PrizeKey, string> = {
   fifth:   "Năm",
   sixth:   "Sáu",
   seventh: "Bảy",
+  eighth:  "Tám",
 };
 
 interface Props {
@@ -52,7 +53,10 @@ export default function MultiStationTable({
           </tr>
         </thead>
         <tbody>
-          {DRAW_ORDER.flatMap((prizeKey, prizeIdx) => {
+          {DRAW_ORDER.filter((prizeKey) =>
+            // Only show eighth row when at least one station has eighth data
+            prizeKey !== "eighth" || stations.some((s) => (s.results.eighth ?? []).length > 0)
+          ).flatMap((prizeKey, prizeIdx) => {
             const maxCount = Math.max(
               1,
               ...stations.map((s) => (s.results[prizeKey] ?? []).length)

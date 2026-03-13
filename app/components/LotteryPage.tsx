@@ -48,7 +48,7 @@ function getLast5Days(): Array<{ iso: string; label: string; isToday: boolean }>
 function emptyResult(): LotteryResult {
   return {
     special: [], first: [], second: [], third: [],
-    fourth: [], fifth: [], sixth: [], seventh: [],
+    fourth: [], fifth: [], sixth: [], seventh: [], eighth: [],
   };
 }
 
@@ -88,6 +88,7 @@ function buildAnimatedStation(partial: Partial<LotteryResult>): StationResult {
       fifth:   partial.fifth   ?? [],
       sixth:   partial.sixth   ?? [],
       seventh: partial.seventh ?? [],
+      eighth:  partial.eighth  ?? [],
     },
   };
 }

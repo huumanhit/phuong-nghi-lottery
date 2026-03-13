@@ -59,41 +59,20 @@ type PrizeKey = keyof LotteryResult;
 const LABEL_MAP: Array<{ key: PrizeKey; patterns: RegExp[] }> = [
   {
     key: "special",
-    // xskt.com.vn uses "ĐB" (U+0110 uppercase Đ)
     patterns: [
-      /^[ĐĐđd][Bb]$/,   // exact "ĐB" / "đb" / "DB"
+      /^[ĐĐđd][Bb]$/,
       /đặc\s*biệt/i,
       /gi[aả]i\s*(?:đặc\s*biệt|[đd]b)/i,
     ],
   },
-  {
-    key: "first",
-    patterns: [/^1$/, /gi[aả]i\s*nh[aấ]t/i, /^nh[aấ]t$/i],
-  },
-  {
-    key: "second",
-    patterns: [/^2$/, /gi[aả]i\s*nh[iì]/i, /^nh[iì]$/i],
-  },
-  {
-    key: "third",
-    patterns: [/^3$/, /gi[aả]i\s*ba/i, /^ba$/i],
-  },
-  {
-    key: "fourth",
-    patterns: [/^4$/, /gi[aả]i\s*t[ưu]/i, /^t[ưu]$/i],
-  },
-  {
-    key: "fifth",
-    patterns: [/^5$/, /gi[aả]i\s*n[aă]m/i, /^n[aă]m$/i],
-  },
-  {
-    key: "sixth",
-    patterns: [/^6$/, /gi[aả]i\s*s[aá]u/i, /^s[aá]u$/i],
-  },
-  {
-    key: "seventh",
-    patterns: [/^7$/, /gi[aả]i\s*b[aả]y/i, /^b[aả]y$/i],
-  },
+  { key: "first",   patterns: [/^1$/, /gi[aả]i\s*nh[aấ]t/i, /^nh[aấ]t$/i] },
+  { key: "second",  patterns: [/^2$/, /gi[aả]i\s*nh[iì]/i,  /^nh[iì]$/i]  },
+  { key: "third",   patterns: [/^3$/, /gi[aả]i\s*ba/i,       /^ba$/i]      },
+  { key: "fourth",  patterns: [/^4$/, /gi[aả]i\s*t[ưu]/i,   /^t[ưu]$/i]  },
+  { key: "fifth",   patterns: [/^5$/, /gi[aả]i\s*n[aă]m/i,  /^n[aă]m$/i] },
+  { key: "sixth",   patterns: [/^6$/, /gi[aả]i\s*s[aá]u/i,  /^s[aá]u$/i] },
+  { key: "seventh", patterns: [/^7$/, /gi[aả]i\s*b[aả]y/i,  /^b[aả]y$/i] },
+  { key: "eighth",  patterns: [/^8$/, /gi[aả]i\s*t[aá]m/i,  /^t[aá]m$/i] },
 ];
 
 function matchPrizeKey(label: string): PrizeKey | null {
@@ -196,6 +175,7 @@ function parseHtmlTable(html: string): LotteryResult | null {
     fifth:   result.fifth   ?? [],
     sixth:   result.sixth   ?? [],
     seventh: result.seventh ?? [],
+    eighth:  result.eighth  ?? [],
   };
 }
 
@@ -235,6 +215,7 @@ function parsePlainText(raw: string): LotteryResult | null {
     fifth:   result.fifth   ?? [],
     sixth:   result.sixth   ?? [],
     seventh: result.seventh ?? [],
+    eighth:  result.eighth  ?? [],
   };
 }
 
@@ -282,6 +263,7 @@ function parsePositional(raw: string): LotteryResult | null {
     fifth:   result.fifth   ?? [],
     sixth:   result.sixth   ?? [],
     seventh: result.seventh ?? [],
+    eighth:  [],
   };
 }
 
@@ -527,6 +509,167 @@ function isoToVN(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
+/** Safely convert a Partial<LotteryResult> to a full LotteryResult. */
+function toFullResult(partial: Partial<LotteryResult>): LotteryResult {
+  return {
+    special: partial.special ?? [],
+    first:   partial.first   ?? [],
+    second:  partial.second  ?? [],
+    third:   partial.third   ?? [],
+    fourth:  partial.fourth  ?? [],
+    fifth:   partial.fifth   ?? [],
+    sixth:   partial.sixth   ?? [],
+    seventh: partial.seventh ?? [],
+    eighth:  partial.eighth  ?? [],
+  };
+}
+
+/**
+ * Parse a multi-column HTML table where each column (after the prize label)
+ * represents one station.  Returns one Partial<LotteryResult> per station
+ * in column order, or null if the table doesn't fit the expected shape.
+ *
+ * Handles two common formats:
+ *   A) All numbers for a prize on one row: <tr><td>Tư</td><td>n1 n2 …</td>…</tr>
+ *   B) One number per row (rowspan label):  <tr><td rowspan=7>Tư</td><td>n1</td>…</tr>
+ *                                            <tr><td>n2</td>…</tr>
+ */
+function parseMultiStationDescription(
+  html: string,
+  numStations: number
+): Array<Partial<LotteryResult>> | null {
+  if (numStations <= 1) return null;
+
+  const stationResults: Array<Partial<LotteryResult>> = Array.from(
+    { length: numStations }, () => ({})
+  );
+
+  const append = (result: Partial<LotteryResult>, key: PrizeKey, nums: string[]) => {
+    const existing = (result[key] ?? []) as string[];
+    (result as Record<string, string[]>)[key] = [...existing, ...nums];
+  };
+
+  const trMatches = Array.from(html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi));
+  let currentPrize: PrizeKey | null = null;
+  let anyData = false;
+
+  for (const trMatch of trMatches) {
+    const cells = Array.from(
+      trMatch[1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)
+    ).map((m) => stripHtml(m[1]));
+
+    if (cells.length === 0) continue;
+
+    const prizeKey = matchPrizeKey(cells[0]);
+
+    if (prizeKey !== null) {
+      // Prize-label row: cells[0]=label, cells[1..N]=station values
+      currentPrize = prizeKey;
+      for (let i = 0; i < numStations; i++) {
+        const nums = extractNumbers(cells[i + 1] ?? "");
+        if (nums.length > 0) { append(stationResults[i], prizeKey, nums); anyData = true; }
+      }
+    } else if (currentPrize !== null && cells.length === numStations) {
+      // Continuation row (rowspan label omitted): cells[0..N-1]=station values
+      for (let i = 0; i < numStations; i++) {
+        const nums = extractNumbers(cells[i] ?? "");
+        if (nums.length > 0) { append(stationResults[i], currentPrize, nums); anyData = true; }
+      }
+    }
+    // Header rows / unrecognized rows → skip
+  }
+
+  if (!anyData) return null;
+  // Must have ĐB for at least one station to be valid
+  if (!stationResults.some((r) => (r.special?.length ?? 0) > 0)) return null;
+  return stationResults;
+}
+
+// ---------------------------------------------------------------------------
+// Parser for xskt.com.vn plain-text multi-station format
+//
+// The RSS description uses this structure (one item per draw date):
+//   [Station Name]
+//   ĐB: 289565
+//   1: 39264
+//   2: 27223
+//   3: 22861 - 27028
+//   4: 77976 - 12244 - ...
+//   5: 7415
+//   6: 4140 - 7234 - 9374
+//   7: 5828: 04          ← "7: <seventh>: <eighth>" on one line
+//   [Next Station]
+//   ...
+// ---------------------------------------------------------------------------
+
+function parsePlainTextMultiStation(
+  text: string
+): Array<{ stationName: string; results: LotteryResult }> | null {
+  const lines = toLines(text);
+
+  // Split into per-station sections at [Station Name] markers
+  const sections: Array<{ name: string; lines: string[] }> = [];
+  let currentName: string | null = null;
+  let currentLines: string[] = [];
+
+  for (const line of lines) {
+    const headerMatch = line.match(/^\[(.+?)\]/);
+    if (headerMatch) {
+      if (currentName !== null && currentLines.length > 0) {
+        sections.push({ name: currentName.trim(), lines: currentLines });
+      }
+      currentName = headerMatch[1].trim();
+      currentLines = [];
+    } else if (currentName !== null) {
+      currentLines.push(line);
+    }
+  }
+  if (currentName !== null && currentLines.length > 0) {
+    sections.push({ name: currentName.trim(), lines: currentLines });
+  }
+
+  if (sections.length === 0) return null;
+
+  const stationResults: Array<{ stationName: string; results: LotteryResult }> = [];
+
+  for (const { name, lines: sLines } of sections) {
+    const result: Partial<LotteryResult> = {};
+
+    for (const line of sLines) {
+      const colonIdx = line.indexOf(":");
+      if (colonIdx === -1) continue;
+
+      const label = line.slice(0, colonIdx).trim();
+      const key = matchPrizeKey(label);
+      if (!key) continue;
+
+      const afterLabel = line.slice(colonIdx + 1).trim();
+
+      // "7: XXXX: YY" → seventh = XXXX, eighth = YY (xskt.com.vn compact notation)
+      if (key === "seventh") {
+        const secondColon = afterLabel.indexOf(":");
+        if (secondColon !== -1) {
+          const seventhNums = extractNumbers(afterLabel.slice(0, secondColon));
+          const eighthNums  = extractNumbers(afterLabel.slice(secondColon + 1));
+          if (seventhNums.length > 0) result.seventh = seventhNums;
+          if (eighthNums.length > 0)  result.eighth  = eighthNums;
+          continue;
+        }
+      }
+
+      const nums = extractNumbers(afterLabel);
+      if (nums.length > 0) result[key] = nums;
+    }
+
+    // Only include stations that have a valid ĐB prize
+    if ((result.special?.length ?? 0) > 0) {
+      stationResults.push({ stationName: name, results: toFullResult(result) });
+    }
+  }
+
+  return stationResults.length > 0 ? stationResults : null;
+}
+
 // ---------------------------------------------------------------------------
 // fetchDailyRegionResult — multi-station aware
 // ---------------------------------------------------------------------------
@@ -575,7 +718,24 @@ export async function fetchDailyRegionResult(
       };
     }
 
-    // ---- Try to detect per-station items ----
+    // ---- For MT/MN: try [Station] plain-text multi-station format first ----
+    if (region !== "mb" && itemsForDate.length >= 1) {
+      const multiStation = parsePlainTextMultiStation(itemsForDate[0].description);
+      if (multiStation && multiStation.length > 0) {
+        return {
+          date: targetDate,
+          region,
+          stations: multiStation.map((s) => ({
+            stationId: stationSlug(s.stationName),
+            stationName: s.stationName,
+            results: s.results,
+          })),
+          error: null,
+        };
+      }
+    }
+
+    // ---- Fallback: try to detect per-station items via title ----
     const stationResults: StationResult[] = [];
 
     for (const item of itemsForDate) {
@@ -601,15 +761,36 @@ export async function fetchDailyRegionResult(
     if (isAggregated) {
       const dayOfWeek = getDayOfWeekFromVN(targetDate);
       const scheduledNames = STATION_SCHEDULE[region][dayOfWeek] ?? [];
-      const combinedResult = stationResults[0].results;
 
-      const spread: StationResult[] = scheduledNames.map((name) => ({
-        stationId: stationSlug(name),
-        stationName: name,
-        results: combinedResult,
-      }));
+      // Try HTML multi-column table format as last resort
+      const perStation = parseMultiStationDescription(
+        itemsForDate[0].description,
+        scheduledNames.length
+      );
+      if (perStation && perStation.length === scheduledNames.length) {
+        return {
+          date: targetDate,
+          region,
+          stations: scheduledNames.map((name, i) => ({
+            stationId: stationSlug(name),
+            stationName: name,
+            results: toFullResult(perStation[i]),
+          })),
+          error: null,
+        };
+      }
 
-      return { date: targetDate, region, stations: spread, error: null };
+      // Last resort: same result for all stations
+      return {
+        date: targetDate,
+        region,
+        stations: scheduledNames.map((name) => ({
+          stationId: stationSlug(name),
+          stationName: name,
+          results: stationResults[0].results,
+        })),
+        error: null,
+      };
     }
 
     return { date: targetDate, region, stations: stationResults, error: null };
