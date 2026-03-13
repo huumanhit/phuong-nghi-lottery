@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 
 // ---------------------------------------------------------------------------
@@ -57,9 +58,7 @@ export default function Header() {
         {/* ---- Branding row ---- */}
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
-            <div className="bg-yellow-400 text-red-700 font-extrabold text-xl px-3 py-1 rounded-lg shadow">
-              PN
-            </div>
+            <Image src="/logo.png" alt="Phương Nghi Logo" width={60} height={60} className="rounded-full" priority />
             <div>
               <div className="text-white font-extrabold text-2xl tracking-wide leading-tight">
                 PHƯƠNG NGHI
