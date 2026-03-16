@@ -35,13 +35,15 @@ const MB_COLS: Partial<Record<PrizeKey, number>> = {
 // ── MB number-cell text class ─────────────────────────────────────────────────
 function getMbNumClass(prizeKey: PrizeKey): string {
   switch (prizeKey) {
-    case "special": return "text-red-700 text-3xl font-extrabold tracking-widest";
-    case "first":   return "text-red-600 text-2xl font-extrabold";
-    case "second":  return "text-blue-600 text-lg font-bold";
-    case "third":   return "text-green-700 font-semibold text-base";
-    case "sixth":   return "text-blue-600 font-semibold";
-    case "seventh": return "text-red-600 text-xl font-extrabold";
-    default:        return "text-gray-800 font-medium";
+    case "special": return "text-red-700 font-extrabold";
+    case "first":   return "text-red-600 font-extrabold";
+    case "second":  return "text-blue-700 font-bold";
+    case "third":   return "text-gray-800 font-bold";
+    case "fourth":  return "text-gray-800 font-bold";
+    case "fifth":   return "text-gray-800 font-bold";
+    case "sixth":   return "text-blue-600 font-bold";
+    case "seventh": return "text-red-600 font-extrabold";
+    default:        return "text-gray-800 font-bold";
   }
 }
 
@@ -50,13 +52,49 @@ function getMnMtNumClass(prizeKey: PrizeKey, stationIdx: number): string {
   switch (prizeKey) {
     case "special":
       return stationIdx % 2 === 0
-        ? "text-red-600 text-2xl font-extrabold tracking-widest"
-        : "text-blue-600 text-2xl font-extrabold tracking-widest";
-    case "eighth":  return "text-red-600 text-xl font-extrabold";
-    case "seventh": return "text-blue-600 font-bold";
-    default:        return "text-gray-800 font-medium";
+        ? "text-red-600 font-extrabold"
+        : "text-blue-600 font-extrabold";
+    case "eighth":  return "text-red-600 font-extrabold";
+    case "seventh": return "text-blue-700 font-bold";
+    default:        return "text-gray-800 font-bold";
   }
 }
+
+// ── Font size per prize (inline style for pixel-perfect sizing) ───────────────
+const MB_FONT_SIZE: Partial<Record<PrizeKey, string>> = {
+  special: "28px",
+  first:   "22px",
+  second:  "18px",
+  third:   "14px",
+  fourth:  "14px",
+  fifth:   "14px",
+  sixth:   "14px",
+  seventh: "20px",
+};
+
+const MNMT_FONT_SIZE: Partial<Record<PrizeKey, string>> = {
+  special: "24px",
+  first:   "14px",
+  second:  "14px",
+  third:   "14px",
+  fourth:  "13px",
+  fifth:   "13px",
+  sixth:   "13px",
+  seventh: "14px",
+  eighth:  "20px",
+};
+
+// ── Gap between numbers in a row ──────────────────────────────────────────────
+const MB_GAP: Partial<Record<PrizeKey, string>> = {
+  special: "16px",
+  first:   "12px",
+  second:  "20px",
+  third:   "12px",
+  fourth:  "12px",
+  fifth:   "12px",
+  sixth:   "16px",
+  seventh: "16px",
+};
 
 // ── Label cell background ─────────────────────────────────────────────────────
 function getLabelBg(prizeKey: PrizeKey): string {
@@ -105,14 +143,9 @@ export default function MultiStationTable({
             {stations.map((s) => (
               <th
                 key={s.stationId}
-                className="py-1.5 px-3 text-sm font-bold border-r border-red-500 last:border-r-0 text-center"
+                className="py-2 px-2 text-sm font-bold border-r border-red-500 last:border-r-0 text-center leading-tight"
               >
-                <div>{s.stationName}</div>
-                {!isMb && (
-                  <div className="text-[10px] font-normal text-red-200 mt-0.5">
-                    {s.stationId.toUpperCase().slice(0, 6)}
-                  </div>
-                )}
+                {s.stationName}
               </th>
             ))}
           </tr>
@@ -134,6 +167,9 @@ export default function MultiStationTable({
                   rows.push(numbers.slice(i, i + cols));
                 }
 
+                const fontSize = MB_FONT_SIZE[prizeKey] ?? "14px";
+                const gap     = MB_GAP[prizeKey] ?? "12px";
+
                 return (
                   <tr key={prizeKey} className={`border-b border-gray-200 ${rowBg}`}>
                     {/* Label */}
@@ -146,9 +182,9 @@ export default function MultiStationTable({
                       {numbers.length === 0 ? (
                         <span className="text-gray-300 text-xs">—</span>
                       ) : (
-                        <div className="flex flex-col items-center gap-0.5">
+                        <div className="flex flex-col items-center" style={{ gap: "2px" }}>
                           {rows.map((rowNums, rIdx) => (
-                            <div key={rIdx} className="flex justify-center gap-x-4">
+                            <div key={rIdx} className="flex justify-center" style={{ gap }}>
                               {rowNums.map((num, nIdx) => {
                                 const globalIdx = rIdx * cols + nIdx;
                                 const isNew = revealed.has(`${prizeKey}-${globalIdx}`) && !isComplete;
@@ -157,11 +193,8 @@ export default function MultiStationTable({
                                     key={nIdx}
                                     className={`inline-block transition-all duration-500 ${numClass} ${
                                       isNew ? "scale-125 animate-bounce" : ""
-                                    } ${
-                                      prizeKey === "special"
-                                        ? "bg-amber-100 border border-amber-400 rounded px-3 py-0.5"
-                                        : ""
                                     }`}
+                                    style={{ fontSize, lineHeight: "1.3" }}
                                   >
                                     {num}
                                   </span>
@@ -213,18 +246,20 @@ export default function MultiStationTable({
                             const num = (s.results[prizeKey] ?? [])[rowIdx];
                             const revealKey = `${prizeKey}-${rowIdx}`;
                             const isNew = revealed.has(revealKey) && !isComplete;
-                            const numClass = getMnMtNumClass(prizeKey, sIdx);
+                            const numClass  = getMnMtNumClass(prizeKey, sIdx);
+                            const fontSize  = MNMT_FONT_SIZE[prizeKey] ?? "14px";
 
                             return (
                               <td
                                 key={s.stationId}
-                                className="py-1.5 px-2 border-r border-gray-100 last:border-r-0"
+                                className="py-1 px-2 border-r border-gray-100 last:border-r-0 text-center"
                               >
                                 {num != null ? (
                                   <span
                                     className={`inline-block transition-all duration-500 ${numClass} ${
                                       isNew ? "scale-125 animate-bounce" : ""
                                     }`}
+                                    style={{ fontSize, lineHeight: "1.4" }}
                                   >
                                     {num}
                                   </span>

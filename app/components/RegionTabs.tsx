@@ -14,19 +14,19 @@ interface Props {
 
 export default function RegionTabs({ active, onChange }: Props) {
   return (
-    <div className="flex border-b-2 border-red-600 mb-4">
+    <div className="flex rounded-lg overflow-hidden border border-red-200 mb-4">
       {TABS.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onChange(tab.id)}
-          className={`flex-1 py-2.5 px-4 text-sm font-bold transition-all duration-200 ${
+          className={`flex-1 py-2 px-2 text-center transition-all duration-200 border-r border-red-200 last:border-r-0 ${
             active === tab.id
-              ? "bg-red-700 text-white shadow-md"
+              ? "bg-red-700 text-white"
               : "bg-white text-red-700 hover:bg-red-50"
           }`}
         >
-          <div>{tab.label}</div>
-          <div className={`text-xs font-normal ${active === tab.id ? "text-red-200" : "text-gray-400"}`}>
+          <div className="text-xs font-extrabold leading-tight">{tab.label}</div>
+          <div className={`text-[11px] font-semibold mt-0.5 ${active === tab.id ? "text-red-200" : "text-gray-400"}`}>
             {tab.sub}
           </div>
         </button>

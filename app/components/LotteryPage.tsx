@@ -477,23 +477,28 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
           <div className="bg-white rounded-xl shadow-md overflow-hidden">
 
             {/* Panel header */}
-            <div className="bg-red-700 px-4 py-3 flex items-center justify-between">
-              <span className="text-white font-bold text-base">
-                XSKT {REGION_NAMES[region]} — Ngày {isDateMode && selectedDate ? isoToVN(selectedDate) : (drawDate ?? today)}
-              </span>
-              <div className="flex items-center gap-2">
+            <div className="bg-red-700 px-4 py-2.5 flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="text-white font-extrabold text-sm leading-tight truncate">
+                  XSKT {REGION_NAMES[region]}
+                </div>
+                <div className="text-red-200 text-xs mt-0.5">
+                  Ngày {isDateMode && selectedDate ? isoToVN(selectedDate) : (drawDate ?? today)}
+                </div>
+              </div>
+              <div className="flex-shrink-0">
                 {currentLoading && (
-                  <span className="bg-yellow-400 text-red-800 text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+                  <span className="bg-yellow-400 text-red-800 text-xs font-bold px-2.5 py-1 rounded-full animate-pulse whitespace-nowrap">
                     ĐANG TẢI
                   </span>
                 )}
                 {!currentLoading && isLive && (
-                  <span className="bg-green-400 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
-                    LIVE
+                  <span className="bg-green-400 text-white text-xs font-bold px-2.5 py-1 rounded-full animate-pulse whitespace-nowrap">
+                    ● LIVE
                   </span>
                 )}
                 {!currentLoading && displayStations.length > 0 && !isLive && (
-                  <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                  <span className="bg-green-500 text-white text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap">
                     ● KẾT QUẢ
                   </span>
                 )}
@@ -506,23 +511,23 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
             </div>
 
             {/* ---- Action toolbar ---- */}
-            <div className="flex items-center gap-1.5 px-3 py-2 border-t border-b border-red-100 bg-red-50 flex-wrap">
+            <div className="flex items-center gap-1.5 px-3 py-2 border-t border-b border-red-100 bg-red-50 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
               <button
                 onClick={() => setShowPrintModal(true)}
                 disabled={displayStations.length === 0}
-                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold bg-white border border-red-200 rounded-lg text-red-700 hover:bg-red-100 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold bg-white border border-red-200 rounded-lg text-red-700 hover:bg-red-100 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 🖨️ In Vé Dò
               </button>
               <Link
                 href="/doi-ve-trung"
-                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold bg-white border border-red-200 rounded-lg text-red-700 hover:bg-red-100 active:scale-95 transition-all"
+                className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold bg-white border border-red-200 rounded-lg text-red-700 hover:bg-red-100 active:scale-95 transition-all"
               >
                 🔄 Đổi Số Trúng
               </Link>
               <button
                 onClick={handleShare}
-                className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold border rounded-lg transition-all active:scale-95 ${
+                className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold border rounded-lg transition-all active:scale-95 ${
                   shareStatus === "copied"
                     ? "bg-green-600 border-green-600 text-white"
                     : "bg-white border-red-200 text-red-700 hover:bg-red-100"
@@ -533,7 +538,7 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
               <button
                 onClick={() => setIsZoomed(true)}
                 disabled={displayStations.length === 0}
-                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold bg-white border border-red-200 rounded-lg text-red-700 hover:bg-red-100 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold bg-white border border-red-200 rounded-lg text-red-700 hover:bg-red-100 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 🔍 Phóng to
               </button>
