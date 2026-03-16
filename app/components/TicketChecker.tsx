@@ -5,22 +5,44 @@ import { PRIZE_LABELS, ALL_STATIONS } from "../lib/lotteryData";
 import type { LotteryServiceResult } from "@/services/lotteryService";
 
 // ---------------------------------------------------------------------------
-// Types
+// Lottery draw schedule — stationId[] per day of week (0 = CN … 6 = T7)
 // ---------------------------------------------------------------------------
 
-interface WinResult {
-  prizeKey: keyof LotteryResult;
-  prizeLabel: string;
-  matchedNumber: string;
+const SCHEDULE: Record<number, string[]> = {
+  0: ["ha-noi", "tien-giang", "kien-giang", "da-lat", "kon-tum", "khanh-hoa", "thua-thien-hue"],
+  1: ["ha-noi", "tp-hcm", "dong-thap", "ca-mau", "thua-thien-hue", "phu-yen"],
+  2: ["ha-noi", "ben-tre", "vung-tau", "ba-ria-vung-tau", "bac-lieu", "quang-nam", "dak-lak"],
+  3: ["ha-noi", "dong-nai", "can-tho", "soc-trang", "da-nang", "khanh-hoa"],
+  4: ["ha-noi", "tay-ninh", "an-giang", "binh-thuan", "binh-dinh", "quang-tri", "quang-binh"],
+  5: ["ha-noi", "vinh-long", "binh-duong", "tra-vinh", "gia-lai", "ninh-thuan"],
+  6: ["ha-noi", "tp-hcm", "long-an", "binh-phuoc", "hau-giang", "da-nang", "quang-ngai", "dak-nong"],
+};
+
+const DOW_LABEL = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+
+function getStationsByDate(dateIso: string) {
+  if (!dateIso) return [];
+  const [y, m, d] = dateIso.split("-").map(Number);
+  const dow = new Date(y, m - 1, d).getDay();
+  const ids = SCHEDULE[dow] ?? [];
+  return ids
+    .map((id) => ALL_STATIONS.find((s) => s.id === id))
+    .filter(Boolean) as typeof ALL_STATIONS;
 }
 
 // ---------------------------------------------------------------------------
-// Checking logic — last N digits of ticket vs prize number (N = prize digits)
+// Win-check logic
 // ---------------------------------------------------------------------------
 
 const PRIZE_ORDER: Array<keyof LotteryResult> = [
   "special", "first", "second", "third", "fourth", "fifth", "sixth", "seventh",
 ];
+
+interface WinResult {
+  prizeKey:      keyof LotteryResult;
+  prizeLabel:    string;
+  matchedNumber: string;
+}
 
 function checkTicket(ticket: string, result: LotteryResult): WinResult | null {
   for (const key of PRIZE_ORDER) {
@@ -54,8 +76,8 @@ function isoToVN(iso: string): string {
 // ---------------------------------------------------------------------------
 
 export default function TicketChecker() {
-  const [stationId, setStationId]             = useState<string>("ha-noi");
   const [selectedDate, setSelectedDate]       = useState<string>("");
+  const [stationId, setStationId]             = useState<string>("");
   const [ticketNumber, setTicketNumber]       = useState<string>("");
   const [loading, setLoading]                 = useState(false);
   const [fetchError, setFetchError]           = useState<string | null>(null);
@@ -63,38 +85,64 @@ export default function TicketChecker() {
   const [winResult, setWinResult]             = useState<WinResult | null>(null);
   const [checked, setChecked]                 = useState(false);
 
-  const selectedStation = ALL_STATIONS.find((s) => s.id === stationId);
-  const region = selectedStation?.region ?? "mb";
+  const availableStations = getStationsByDate(selectedDate);
+  const selectedStation   = availableStations.find((s) => s.id === stationId) ?? null;
+  const region            = selectedStation?.region ?? "mn";
+
+  // MB = 5 digits, MN/MT = 6 digits
+  const requiredDigits = region === "mb" ? 5 : 6;
+
+  // Day-of-week label
+  const dowLabel = selectedDate
+    ? DOW_LABEL[new Date(...(selectedDate.split("-").map(Number) as [number, number, number])).getDay()]
+    : null;
+
+  const handleDateChange = (iso: string) => {
+    setSelectedDate(iso);
+    setStationId("");
+    setTicketNumber("");
+    setChecked(false);
+    setWinResult(null);
+    setFetchError(null);
+    setValidationError(null);
+  };
+
+  const handleStationChange = (id: string) => {
+    setStationId(id);
+    setTicketNumber("");
+    setChecked(false);
+    setValidationError(null);
+  };
 
   const handleTicketInput = useCallback((val: string) => {
-    setTicketNumber(val.replace(/\D/g, "").slice(0, 6));
+    setTicketNumber(val.replace(/\D/g, "").slice(0, requiredDigits));
     setValidationError(null);
     setChecked(false);
-  }, []);
+  }, [requiredDigits]);
 
   const handleCheck = useCallback(async () => {
     setFetchError(null);
     setChecked(false);
     setWinResult(null);
 
-    if (!/^\d{6}$/.test(ticketNumber)) {
-      setValidationError("Số vé phải có đúng 6 chữ số");
+    const re = new RegExp(`^\\d{${requiredDigits}}$`);
+    if (!re.test(ticketNumber)) {
+      setValidationError(`Số vé phải có đúng ${requiredDigits} chữ số`);
       return;
     }
-    if (!selectedDate) {
-      setValidationError("Vui lòng chọn ngày xổ");
-      return;
-    }
+    if (!selectedDate) { setValidationError("Vui lòng chọn ngày xổ"); return; }
+    if (!stationId)    { setValidationError("Vui lòng chọn đài xổ số"); return; }
     setValidationError(null);
 
     setLoading(true);
     try {
-      const stationParam = selectedStation?.name ? `&station=${encodeURIComponent(selectedStation.name)}` : "";
-      const res = await fetch(`/api/lottery?region=${region}&date=${selectedDate}${stationParam}`);
+      const stationParam = selectedStation?.name
+        ? `&station=${encodeURIComponent(selectedStation.name)}` : "";
+      const res  = await fetch(`/api/lottery?region=${region}&date=${selectedDate}${stationParam}`);
       if (!res.ok) throw new Error(`Lỗi máy chủ: HTTP ${res.status}`);
       const data = (await res.json()) as LotteryServiceResult;
       if (data.error) throw new Error(data.error);
-      if (!data.data) throw new Error("Không có dữ liệu xổ số cho ngày này");
+      if (!data.data)  throw new Error("Không có dữ liệu xổ số cho ngày này");
 
       setWinResult(checkTicket(ticketNumber, data.data));
       setChecked(true);
@@ -103,16 +151,20 @@ export default function TicketChecker() {
     } finally {
       setLoading(false);
     }
-  }, [region, selectedDate, ticketNumber]);
+  }, [region, selectedDate, stationId, selectedStation, ticketNumber, requiredDigits]);
 
   const handleReset = () => {
     setTicketNumber("");
     setSelectedDate("");
+    setStationId("");
     setChecked(false);
     setWinResult(null);
     setFetchError(null);
     setValidationError(null);
   };
+
+  const regionLabel = region === "mb" ? "Miền Bắc" : region === "mt" ? "Miền Trung" : "Miền Nam";
+  const regionColor = region === "mb" ? "text-blue-600" : region === "mt" ? "text-orange-600" : "text-green-600";
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -130,70 +182,93 @@ export default function TicketChecker() {
 
           <div className="p-5 space-y-5">
 
-            {/* Station / Province select */}
+            {/* ── Bước 1: Ngày xổ ── */}
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">
-                Đài xổ số <span className="text-red-600">*</span>
-              </label>
-              <select
-                value={stationId}
-                onChange={(e) => { setStationId(e.target.value); setChecked(false); }}
-                className="w-full border-2 border-red-200 rounded-lg px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent bg-white"
-              >
-                <optgroup label="Miền Bắc">
-                  {ALL_STATIONS.filter((s) => s.region === "mb").map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </optgroup>
-                <optgroup label="Miền Trung">
-                  {ALL_STATIONS.filter((s) => s.region === "mt").map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </optgroup>
-                <optgroup label="Miền Nam">
-                  {ALL_STATIONS.filter((s) => s.region === "mn").map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </optgroup>
-              </select>
-              {selectedStation && (
-                <p className="mt-1 text-xs text-gray-400">
-                  Khu vực:{" "}
-                  <span className="font-semibold text-red-600">
-                    {region === "mb" ? "Miền Bắc" : region === "mt" ? "Miền Trung" : "Miền Nam"}
-                  </span>
-                </p>
-              )}
-            </div>
-
-            {/* Draw Date */}
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">
-                Ngày xổ <span className="text-red-600">*</span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="bg-red-600 text-white text-xs font-bold w-5 h-5 rounded-full inline-flex items-center justify-center">1</span>
+                  Ngày xổ <span className="text-red-600">*</span>
+                </span>
               </label>
               <input
                 type="date"
                 value={selectedDate}
                 max={todayIso()}
-                onChange={(e) => { setSelectedDate(e.target.value); setChecked(false); }}
+                onChange={(e) => handleDateChange(e.target.value)}
                 className="w-full border-2 border-red-200 rounded-lg px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"
               />
+              {dowLabel && (
+                <p className="mt-1 text-xs font-semibold text-red-600">
+                  {dowLabel} · {availableStations.length} đài xổ hôm nay
+                </p>
+              )}
             </div>
 
-            {/* Ticket Number */}
+            {/* ── Bước 2: Đài xổ số (filtered by date) ── */}
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">
-                Số vé <span className="text-red-600">*</span>
-                <span className="ml-2 text-xs text-gray-400 font-normal">(6 chữ số)</span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="bg-red-600 text-white text-xs font-bold w-5 h-5 rounded-full inline-flex items-center justify-center">2</span>
+                  Đài xổ số <span className="text-red-600">*</span>
+                </span>
+              </label>
+
+              {!selectedDate ? (
+                <div className="w-full border-2 border-gray-100 rounded-lg px-4 py-2.5 text-sm text-gray-400 bg-gray-50">
+                  Chọn ngày xổ trước
+                </div>
+              ) : (
+                <select
+                  value={stationId}
+                  onChange={(e) => handleStationChange(e.target.value)}
+                  className="w-full border-2 border-red-200 rounded-lg px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent bg-white"
+                >
+                  <option value="">Chọn đài ({availableStations.length} đài)...</option>
+                  {(["mb", "mt", "mn"] as const).map((r) => {
+                    const group = availableStations.filter((s) => s.region === r);
+                    if (group.length === 0) return null;
+                    const label = r === "mb" ? "Miền Bắc" : r === "mt" ? "Miền Trung" : "Miền Nam";
+                    return (
+                      <optgroup key={r} label={`── ${label} ──`}>
+                        {group.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </optgroup>
+                    );
+                  })}
+                </select>
+              )}
+
+              {selectedStation && (
+                <p className="mt-1 text-xs text-gray-400">
+                  Khu vực:{" "}
+                  <span className={`font-semibold ${regionColor}`}>{regionLabel}</span>
+                  {" "}· Số vé:{" "}
+                  <span className="font-semibold text-gray-600">{requiredDigits} chữ số</span>
+                </p>
+              )}
+            </div>
+
+            {/* ── Bước 3: Số vé ── */}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="bg-red-600 text-white text-xs font-bold w-5 h-5 rounded-full inline-flex items-center justify-center">3</span>
+                  Số vé <span className="text-red-600">*</span>
+                  <span className="text-xs text-gray-400 font-normal ml-1">
+                    ({requiredDigits} chữ số{stationId && region === "mb" ? " — Miền Bắc" : ""})
+                  </span>
+                </span>
               </label>
               <input
                 type="text"
                 inputMode="numeric"
-                placeholder="Ví dụ: 123456"
+                placeholder={!stationId ? "Chọn đài trước" : region === "mb" ? "Ví dụ: 12345" : "Ví dụ: 123456"}
                 value={ticketNumber}
                 onChange={(e) => handleTicketInput(e.target.value)}
-                maxLength={6}
-                className={`w-full border-2 rounded-lg px-4 py-2.5 text-xl font-bold text-center tracking-widest focus:outline-none focus:ring-2 transition-all ${
+                disabled={!stationId}
+                maxLength={requiredDigits}
+                className={`w-full border-2 rounded-lg px-4 py-2.5 text-xl font-bold text-center tracking-widest focus:outline-none focus:ring-2 transition-all disabled:bg-gray-50 disabled:text-gray-400 ${
                   validationError
                     ? "border-red-500 focus:ring-red-400 text-red-600"
                     : "border-red-200 focus:ring-red-400 text-gray-800"
@@ -203,8 +278,8 @@ export default function TicketChecker() {
                 {validationError ? (
                   <p className="text-red-500 text-xs">{validationError}</p>
                 ) : <span />}
-                <p className={`text-xs ml-auto ${ticketNumber.length === 6 ? "text-green-600" : "text-gray-400"}`}>
-                  {ticketNumber.length}/6
+                <p className={`text-xs ml-auto ${ticketNumber.length === requiredDigits ? "text-green-600 font-bold" : "text-gray-400"}`}>
+                  {ticketNumber.length}/{requiredDigits}
                 </p>
               </div>
             </div>
@@ -221,16 +296,16 @@ export default function TicketChecker() {
             <div className="flex gap-3">
               <button
                 onClick={handleCheck}
-                disabled={loading || ticketNumber.length !== 6}
+                disabled={loading || ticketNumber.length !== requiredDigits || !stationId || !selectedDate}
                 className={`flex-1 py-3 rounded-lg font-bold text-sm transition-all ${
-                  loading || ticketNumber.length !== 6
+                  loading || ticketNumber.length !== requiredDigits || !stationId || !selectedDate
                     ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                     : "bg-red-700 hover:bg-red-800 text-white shadow-md hover:shadow-lg active:scale-95"
                 }`}
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                     </svg>
@@ -297,9 +372,9 @@ export default function TicketChecker() {
           <div className="mt-5 bg-white rounded-xl border border-red-100 shadow-sm p-4">
             <h3 className="font-bold text-red-700 text-sm mb-2">Cách kiểm tra</h3>
             <ul className="text-xs text-gray-500 space-y-1.5">
-              <li className="flex gap-2"><span className="text-red-400 font-bold">1.</span> Chọn đài xổ số (tỉnh/thành)</li>
-              <li className="flex gap-2"><span className="text-red-400 font-bold">2.</span> Chọn ngày xổ trên vé của bạn</li>
-              <li className="flex gap-2"><span className="text-red-400 font-bold">3.</span> Nhập đủ 6 chữ số trên vé</li>
+              <li className="flex gap-2"><span className="text-red-400 font-bold">1.</span> Chọn <strong>ngày xổ</strong> trên vé của bạn</li>
+              <li className="flex gap-2"><span className="text-red-400 font-bold">2.</span> Chọn <strong>đài xổ số</strong> — chỉ hiện đài xổ trong ngày đó</li>
+              <li className="flex gap-2"><span className="text-red-400 font-bold">3.</span> Nhập số vé (5 số cho Miền Bắc, 6 số cho Miền Nam/Trung)</li>
               <li className="flex gap-2"><span className="text-red-400 font-bold">4.</span> Nhấn &quot;Kiểm Tra Vé&quot; để xem kết quả</li>
             </ul>
           </div>

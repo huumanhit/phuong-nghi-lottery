@@ -87,6 +87,10 @@ export const ALL_STATIONS: Array<{ id: string; name: string; region: Region }> =
   { id: "tra-vinh",      name: "Trà Vinh",          region: "mn" },
   { id: "binh-phuoc",    name: "Bình Phước",        region: "mn" },
   { id: "hau-giang",     name: "Hậu Giang",         region: "mn" },
+  { id: "ca-mau",        name: "Cà Mau",            region: "mn" },
+  { id: "tay-ninh",      name: "Tây Ninh",          region: "mn" },
+  { id: "kon-tum",       name: "Kon Tum",           region: "mt" },
+  { id: "ba-ria-vung-tau", name: "Bà Rịa - Vũng Tàu", region: "mn" },
 ];
 
 /** Slugify a Vietnamese station name */
