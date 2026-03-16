@@ -12,6 +12,7 @@ import Link from "next/link";
 import CountdownTimer from "./CountdownTimer";
 import MultiStationTable from "./MultiStationTable";
 import LotoGrid from "./LotoGrid";
+import LotoStationGrid from "./LotoStationGrid";
 import RegionTabs from "./RegionTabs";
 
 // ---------------------------------------------------------------------------
@@ -143,6 +144,11 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [shareStatus, setShareStatus]       = useState<"idle" | "copied">("idle");
   const [isZoomed, setIsZoomed]             = useState(false);
+
+  // Loto digit toggle — mutually exclusive
+  const [lotoMode, setLotoMode] = useState<"units" | "tens" | null>(null);
+  const toggleLoto = (mode: "units" | "tens") =>
+    setLotoMode((prev) => (prev === mode ? null : mode));
 
   // -------------------------------------------------------------------------
   // Fetch latest for a region
@@ -580,6 +586,55 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
                       <p className="text-sm">Chưa có kết quả hôm nay</p>
                     </div>
                   ) : null}
+
+                  {/* ── Digit toggle bar ── */}
+                  {displayStations.length > 0 && (
+                    <div className="flex items-center gap-6 mt-3 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-lg">
+                      {(["units", "tens"] as const).map((mode) => {
+                        const isOn = lotoMode === mode;
+                        const label = mode === "units" ? "Hàng đơn vị" : "Hàng chục";
+                        return (
+                          <div key={mode} className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
+                              {label}
+                            </span>
+                            <button
+                              onClick={() => toggleLoto(mode)}
+                              className={`relative flex items-center w-16 h-7 rounded-full transition-colors duration-200 ${
+                                isOn ? "bg-green-500" : "bg-gray-400"
+                              }`}
+                            >
+                              {isOn ? (
+                                <>
+                                  <span className="text-white text-[10px] font-extrabold ml-1.5">ON</span>
+                                  <span className="absolute right-1 w-5 h-5 bg-white rounded-full shadow" />
+                                </>
+                              ) : (
+                                <>
+                                  <span className="absolute left-1 w-5 h-5 bg-white rounded-full shadow" />
+                                  <span className="text-white text-[10px] font-extrabold ml-auto mr-1.5">OFF</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* ── Loto station grids ── */}
+                  {lotoMode && displayStations.length > 0 && (
+                    <div className="mt-3">
+                      {displayStations.map((s) => (
+                        <LotoStationGrid
+                          key={`${lotoMode}-${s.stationId}`}
+                          station={s}
+                          mode={lotoMode}
+                          date={drawDate ?? undefined}
+                        />
+                      ))}
+                    </div>
+                  )}
 
                   {/* MB controls — only Refresh + optional Replay */}
                   {!isDateMode && region === "mb" && (

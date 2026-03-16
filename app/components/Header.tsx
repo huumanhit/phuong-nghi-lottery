@@ -14,9 +14,9 @@ const MENU_SECTIONS = [
       { label: "Trực Tiếp Xổ Số Miền Nam",              href: "/?region=mn" },
       { label: "Trực Tiếp Xổ Số Miền Trung",             href: "/?region=mt" },
       { label: "Trực Tiếp Xổ Số Miền Bắc",               href: "/?region=mb" },
-      { label: "Trực Tiếp Xổ Số Điện Toán Mega 6/45",    href: "/" },
-      { label: "Trực Tiếp Xổ Số Điện Toán Power 6/55",   href: "/" },
-      { label: "Trực Tiếp Xổ Số Điện Toán Max4D",        href: "/" },
+      { label: "Trực Tiếp Xổ Số Điện Toán Mega 6/45",    href: "/dien-toan/mega-645"  },
+      { label: "Trực Tiếp Xổ Số Điện Toán Power 6/55",   href: "/dien-toan/power-655" },
+      { label: "Trực Tiếp Xổ Số Điện Toán Max4D",        href: "/dien-toan/max-4d"    },
     ],
   },
   {
@@ -32,9 +32,9 @@ const MENU_SECTIONS = [
   {
     title: "KQXS Điện Toán",
     items: [
-      { label: "Kết Quả Vietlott Mega 6/45", href: "/" },
-      { label: "Kết Quả Vietlott Power 6/55", href: "/" },
-      { label: "Kết Quả Vietlott Max4D",      href: "/" },
+      { label: "Kết Quả Vietlott Mega 6/45",  href: "/dien-toan/mega-645"  },
+      { label: "Kết Quả Vietlott Power 6/55", href: "/dien-toan/power-655" },
+      { label: "Kết Quả Vietlott Max4D",      href: "/dien-toan/max-4d"    },
     ],
   },
 ];
