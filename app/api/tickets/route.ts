@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getUserTickets, createTicket } from "@/services/ticketService";
+import { getTicketDigits } from "@/lib/regionUtils";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -28,9 +29,10 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    if (!/^\d{6}$/.test(ticketNumber.trim())) {
+    const digits = getTicketDigits(province);
+    if (!new RegExp(`^\\d{${digits}}$`).test(ticketNumber.trim())) {
       return NextResponse.json(
-        { error: "Số vé phải gồm đúng 6 chữ số" },
+        { error: `Số vé phải gồm đúng ${digits} chữ số` },
         { status: 400 }
       );
     }

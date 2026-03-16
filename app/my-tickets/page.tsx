@@ -30,6 +30,9 @@ const VN_PROVINCES = [
   "Hà Nội",
 ];
 
+const MB_PROVINCE = "Hà Nội";
+function getDigits(prov: string) { return prov === MB_PROVINCE ? 5 : 6; }
+
 export default function MyTicketsPage() {
   const { data: session, status } = useSession();
   const [tickets, setTickets]     = useState<Ticket[]>([]);
@@ -159,15 +162,17 @@ export default function MyTicketsPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Số vé (6 chữ số)</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  Số vé ({getDigits(province)} chữ số{province === MB_PROVINCE ? " — Miền Bắc" : ""})
+                </label>
                 <input
                   type="text"
                   value={ticketNumber}
-                  onChange={(e) => setTicketNumber(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onChange={(e) => setTicketNumber(e.target.value.replace(/\D/g, "").slice(0, getDigits(province)))}
                   required
-                  maxLength={6}
-                  pattern="\d{6}"
-                  placeholder="123456"
+                  maxLength={getDigits(province)}
+                  pattern={`\\d{${getDigits(province)}}`}
+                  placeholder={province === MB_PROVINCE ? "12345" : "123456"}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-red-500"
                 />
               </div>

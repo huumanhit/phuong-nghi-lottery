@@ -1,28 +1,22 @@
 import { NextResponse } from "next/server";
 import { getPendingTickets, updateTicketStatus } from "@/services/ticketService";
+import { getRegionByProvince, getTicketDigits } from "@/lib/regionUtils";
 
-/** Maps a Vietnamese province name to the lottery region (mb/mt/mn) */
-function getRegionByProvince(province: string): "mb" | "mt" | "mn" {
-  const p = province.toLowerCase();
-  const MB_PROVINCES = ["hà nội", "ha noi", "bắc ninh", "bac ninh", "hải phòng", "hai phong"];
-  const MT_PROVINCES = [
-    "đà nẵng", "da nang", "thừa thiên huế", "thua thien hue", "quảng nam", "quang nam",
-    "quảng ngãi", "quang ngai", "bình định", "binh dinh", "phú yên", "phu yen",
-    "khánh hòa", "khanh hoa", "ninh thuận", "ninh thuan", "bình thuận", "binh thuan",
-    "gia lai", "kon tum", "đắk lắk", "dak lak", "đắk nông", "dak nong",
-  ];
-  if (MB_PROVINCES.some((v) => p.includes(v))) return "mb";
-  if (MT_PROVINCES.some((v) => p.includes(v))) return "mt";
-  return "mn"; // default: Miền Nam
-}
-
-/** Check if ticketNumber's last 6 digits match any prize number */
-function checkWin(ticketNumber: string, stations: Array<{ results: Record<string, string[]> }>): boolean {
-  const last6 = ticketNumber.slice(-6);
+/** Check if ticketNumber matches any prize number.
+ *  MB tickets are 5 digits → compare last 5 digits.
+ *  MN/MT tickets are 6 digits → compare last 6 digits.
+ */
+function checkWin(
+  ticketNumber: string,
+  province: string,
+  stations: Array<{ results: Record<string, string[]> }>
+): boolean {
+  const digits  = getTicketDigits(province);
+  const tail    = ticketNumber.slice(-digits);
   for (const station of stations) {
     for (const nums of Object.values(station.results)) {
       for (const num of nums) {
-        if (num && num.slice(-6) === last6) return true;
+        if (num && num.slice(-digits) === tail) return true;
       }
     }
   }
@@ -55,7 +49,7 @@ export async function GET(req: Request) {
 
       if (!data.stations || data.stations.length === 0) { skipped++; continue; }
 
-      const isWin = checkWin(ticket.ticketNumber, data.stations);
+      const isWin = checkWin(ticket.ticketNumber, ticket.province, data.stations);
       await updateTicketStatus(ticket.id, isWin ? "win" : "lose");
       checked++;
       if (isWin) wins++; else losses++;

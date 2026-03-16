@@ -447,7 +447,7 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
 
     const singleTicket = `
       <div class="ticket">
-        <div class="tit">ĐẠI LÝ VÉ SỐ PHƯƠNG TRANG</div>
+        <div class="tit">ĐẠI LÝ VÉ SỐ PHƯƠNG NGHI</div>
         <div class="sub2">BỘ VÉ PHÓNG TO BÁN HÓA ĐƠN HÀNG TUẦN</div>
         <div class="dat">${dateLabel}</div>
         ${tableHTML}
