@@ -22,10 +22,11 @@ const MENU_SECTIONS = [
   {
     title: "KQXS Kiến Thiết",
     items: [
-      { label: "Kết Quả Xổ Số Miền Nam",    href: "/?region=mn" },
-      { label: "Kết Quả Xổ Số Miền Trung",  href: "/?region=mt" },
-      { label: "Kết Quả Xổ Số Miền Bắc",    href: "/?region=mb" },
-      { label: "KQXS Ba Miền",               href: "/" },
+      { label: "Kết Quả Xổ Số Miền Nam",    href: "/?region=mn"   },
+      { label: "Kết Quả Xổ Số Miền Trung",  href: "/?region=mt"   },
+      { label: "Kết Quả Xổ Số Miền Bắc",    href: "/?region=mb"   },
+      { label: "Dò Vé Số Online",            href: "/kiem-tra"     },
+      { label: "Đổi Vé Trúng Thưởng",        href: "/doi-ve-trung" },
     ],
   },
   {
@@ -39,10 +40,10 @@ const MENU_SECTIONS = [
 ];
 
 const NAV_TABS = [
-  { label: "XSMN", href: "/?region=mn" },
-  { label: "XSMT", href: "/?region=mt" },
-  { label: "XSMB", href: "/?region=mb" },
-  { label: "Dò Vé", href: "/kiem-tra" },
+  { label: "XSMN",  href: "/?region=mn" },
+  { label: "XSMT",  href: "/?region=mt" },
+  { label: "XSMB",  href: "/?region=mb" },
+  { label: "Dò Vé", href: "/kiem-tra"   },
 ];
 
 // ---------------------------------------------------------------------------

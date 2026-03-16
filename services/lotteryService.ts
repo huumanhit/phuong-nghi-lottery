@@ -402,10 +402,12 @@ function extractAllRssItems(xml: string): Array<{ description: string; drawDate:
  * Fetch lottery result for a specific region and date.
  * date must be in "DD/MM/YYYY" format.
  * Searches within the RSS feed (typically last ~7 days).
+ * stationName is optional — for MT/MN, filters to the specific station the user selected.
  */
 export async function getLotteryByDate(
   region: Region,
-  date: string // "DD/MM/YYYY"
+  date: string, // "DD/MM/YYYY"
+  stationName?: string
 ): Promise<LotteryServiceResult> {
   try {
     const response = await fetch(RSS_ENDPOINTS[region], {
@@ -430,6 +432,22 @@ export async function getLotteryByDate(
         region,
         error: `Không có dữ liệu cho ngày ${date}. Dữ liệu có sẵn: ${available || "không có"}.`,
       };
+    }
+
+    // For MT/MN with a specific station, use multi-station parser to get the correct station's data
+    if (region !== "mb" && stationName) {
+      const multiStation = parsePlainTextMultiStation(item.description);
+      if (multiStation && multiStation.length > 0) {
+        const targetSlug = stationSlug(stationName);
+        const stationData = multiStation.find(
+          (s) => stationSlug(s.stationName) === targetSlug
+        );
+        if (stationData) {
+          return { data: stationData.results, date, region, error: null };
+        }
+        // Station not found in today's draw — return first available station
+        return { data: multiStation[0].results, date, region, error: null };
+      }
     }
 
     const lotteryResult = parseDescription(item.description);

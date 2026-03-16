@@ -28,7 +28,8 @@ export async function GET(request: Request) {
 
   // Specific region + specific date
   if (region && dateIso) {
-    const result = await getLotteryByDate(region, isoToVN(dateIso));
+    const stationName = searchParams.get("station") ?? undefined;
+    const result = await getLotteryByDate(region, isoToVN(dateIso), stationName);
     return NextResponse.json(result);
   }
 

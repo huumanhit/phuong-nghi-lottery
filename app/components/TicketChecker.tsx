@@ -89,7 +89,8 @@ export default function TicketChecker() {
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/lottery?region=${region}&date=${selectedDate}`);
+      const stationParam = selectedStation?.name ? `&station=${encodeURIComponent(selectedStation.name)}` : "";
+      const res = await fetch(`/api/lottery?region=${region}&date=${selectedDate}${stationParam}`);
       if (!res.ok) throw new Error(`Lỗi máy chủ: HTTP ${res.status}`);
       const data = (await res.json()) as LotteryServiceResult;
       if (data.error) throw new Error(data.error);
