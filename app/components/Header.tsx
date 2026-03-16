@@ -2,6 +2,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
+import { useSession, signOut } from "next-auth/react";
 
 // ---------------------------------------------------------------------------
 // Menu data
@@ -52,6 +53,7 @@ const NAV_TABS = [
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { data: session } = useSession();
 
   return (
     <>
@@ -70,17 +72,45 @@ export default function Header() {
             </div>
           </Link>
 
-          <button
-            onClick={() => setMenuOpen(true)}
-            className="bg-red-800 hover:bg-red-900 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors active:scale-95"
-            aria-label="Mở menu"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5}
-                d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-            <span className="hidden sm:inline">Menu</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Auth button */}
+            {session ? (
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/my-tickets"
+                  className="hidden sm:flex items-center gap-1 bg-yellow-400 hover:bg-yellow-300 text-red-900 px-3 py-1.5 rounded-lg font-bold text-xs transition-colors"
+                >
+                  🎫 Vé Của Tôi
+                </Link>
+                <button
+                  onClick={() => signOut({ callbackUrl: "/" })}
+                  className="hidden sm:block bg-red-800 hover:bg-red-900 text-white px-3 py-1.5 rounded-lg font-bold text-xs transition-colors"
+                >
+                  Đăng Xuất
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="hidden sm:block bg-yellow-400 hover:bg-yellow-300 text-red-900 px-3 py-1.5 rounded-lg font-bold text-xs transition-colors"
+              >
+                Đăng Nhập
+              </Link>
+            )}
+
+            {/* Hamburger */}
+            <button
+              onClick={() => setMenuOpen(true)}
+              className="bg-red-800 hover:bg-red-900 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors active:scale-95"
+              aria-label="Mở menu"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5}
+                  d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              <span className="hidden sm:inline">Menu</span>
+            </button>
+          </div>
         </div>
 
         {/* ---- Main tab row ---- */}
@@ -123,6 +153,50 @@ export default function Header() {
                     d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
+            </div>
+
+            {/* Auth section (mobile) */}
+            <div className="px-4 py-3 bg-red-50 border-b border-red-200 flex items-center justify-between sm:hidden">
+              {session ? (
+                <>
+                  <div>
+                    <p className="text-xs text-gray-500">Đăng nhập:</p>
+                    <p className="text-sm font-bold text-red-700 truncate max-w-[160px]">{session.user?.name}</p>
+                  </div>
+                  <div className="flex flex-col gap-1.5 items-end">
+                    <Link
+                      href="/my-tickets"
+                      onClick={() => setMenuOpen(false)}
+                      className="text-xs font-bold text-red-700 hover:underline"
+                    >
+                      🎫 Vé Của Tôi
+                    </Link>
+                    <button
+                      onClick={() => { setMenuOpen(false); signOut({ callbackUrl: "/" }); }}
+                      className="text-xs font-bold text-gray-500 hover:text-red-700"
+                    >
+                      Đăng Xuất
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex gap-3 w-full">
+                  <Link
+                    href="/login"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex-1 text-center py-2 bg-red-700 text-white text-sm font-bold rounded-lg"
+                  >
+                    Đăng Nhập
+                  </Link>
+                  <Link
+                    href="/register"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex-1 text-center py-2 border border-red-700 text-red-700 text-sm font-bold rounded-lg"
+                  >
+                    Đăng Ký
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Menu sections */}

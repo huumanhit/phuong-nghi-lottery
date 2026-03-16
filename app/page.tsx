@@ -4,6 +4,7 @@ import Header from "./components/Header";
 import LotteryPageWrapper from "./components/LotteryPageWrapper";
 import Sidebar from "./components/Sidebar";
 import LotteryCalendar from "./components/LotteryCalendar";
+import Footer from "./components/Footer";
 
 export default function Home() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -39,6 +40,7 @@ export default function Home() {
 
         </div>
       </div>
+    <Footer />
     </main>
   );
 }
