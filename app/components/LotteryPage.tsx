@@ -571,6 +571,7 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
                   {displayStations.length > 0 ? (
                     <MultiStationTable
                       stations={displayStations}
+                      region={region}
                       revealed={region === "mb" ? revealedMb : new Set()}
                       isComplete={region === "mb" ? mbComplete : true}
                     />
@@ -765,6 +766,7 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
             <div className="max-w-3xl mx-auto">
               <MultiStationTable
                 stations={displayStations}
+                region={region}
                 revealed={new Set()}
                 isComplete={true}
               />
