@@ -117,13 +117,13 @@ export default function Header() {
         </div>
 
         {/* ---- Main tab row ---- */}
-        <div className="bg-red-800 border-t border-red-900">
-          <div className="max-w-7xl mx-auto px-4 flex">
+        <div className="bg-red-800 border-t border-red-900 overflow-x-auto">
+          <div className="max-w-7xl mx-auto flex">
             {NAV_TABS.map((tab) => (
               <Link
                 key={tab.label}
                 href={tab.href}
-                className="px-5 py-2.5 text-white text-sm font-bold hover:bg-red-700 border-r border-red-900 last:border-r-0 transition-colors whitespace-nowrap"
+                className="flex-1 min-w-fit px-3 py-2.5 text-white text-sm font-bold hover:bg-red-700 border-r border-red-900 last:border-r-0 transition-colors whitespace-nowrap text-center"
               >
                 {tab.label}
               </Link>
