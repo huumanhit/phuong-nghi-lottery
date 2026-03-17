@@ -14,6 +14,9 @@ import MultiStationTable from "./MultiStationTable";
 import LotoGrid from "./LotoGrid";
 import LotoStationGrid from "./LotoStationGrid";
 import RegionTabs from "./RegionTabs";
+import LotoStatsPanel from "./LotoStatsPanel";
+import LoDauDuoiTable from "./LoDauDuoiTable";
+import LotoFrequencyPanel from "./LotoFrequencyPanel";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -666,12 +669,15 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
 
                   {/* Multi-station table */}
                   {displayStations.length > 0 ? (
-                    <MultiStationTable
-                      stations={displayStations}
-                      region={region}
-                      revealed={region === "mb" ? revealedMb : new Set()}
-                      isComplete={region === "mb" ? mbComplete : true}
-                    />
+                    <>
+                      <MultiStationTable
+                        stations={displayStations}
+                        region={region}
+                        revealed={region === "mb" ? revealedMb : new Set()}
+                        isComplete={region === "mb" ? mbComplete : true}
+                      />
+                      <LoDauDuoiTable stations={displayStations} />
+                    </>
                   ) : !currentError ? (
                     <div className="py-12 text-center text-gray-400">
                       <p className="text-sm">Chưa có kết quả hôm nay</p>
@@ -680,7 +686,7 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
 
                   {/* ── Digit toggle bar ── */}
                   {displayStations.length > 0 && (
-                    <div className="flex items-center gap-6 mt-3 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-center justify-around mt-3 px-2 py-2 bg-amber-50 border border-amber-200 rounded-lg overflow-hidden">
                       {(["units", "tens"] as const).map((mode) => {
                         const isOn = lotoMode === mode;
                         const label = mode === "units" ? "Hàng đơn vị" : "Hàng chục";
@@ -725,6 +731,32 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
                         />
                       ))}
                     </div>
+                  )}
+
+                  {/* ── Thống kê nhanh per station ── */}
+                  {displayStations.length > 0 && (
+                    <div className="mt-3">
+                      <div className="flex items-center gap-2 mb-2 px-1">
+                        <div className="h-px flex-1 bg-red-200" />
+                        <span className="text-xs font-bold text-red-700 whitespace-nowrap uppercase tracking-wide">
+                          Thống kê nhanh xổ số {REGION_NAMES[region]}
+                        </span>
+                        <div className="h-px flex-1 bg-red-200" />
+                      </div>
+                      {displayStations.map((s) => (
+                        <LotoStatsPanel
+                          key={s.stationId}
+                          stationId={s.stationId}
+                          stationName={s.stationName}
+                          region={region}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* ── Tần suất lô toàn kỳ ── */}
+                  {displayStations.length > 0 && (
+                    <LotoFrequencyPanel region={region} />
                   )}
 
                   {/* MB controls — only Refresh + optional Replay */}

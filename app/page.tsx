@@ -5,6 +5,7 @@ import LotteryPageWrapper from "./components/LotteryPageWrapper";
 import Sidebar from "./components/Sidebar";
 import LotteryCalendar from "./components/LotteryCalendar";
 import Footer from "./components/Footer";
+import PromoBanner from "./components/PromoBanner";
 
 export default function Home() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -13,6 +14,11 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-50">
       <Header />
+
+      {/* ── Promo banner — full width below header ── */}
+      <div className="max-w-7xl mx-auto px-4 pt-4">
+        <PromoBanner />
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 py-5">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">

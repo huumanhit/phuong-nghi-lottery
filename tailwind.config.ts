@@ -12,6 +12,10 @@ const config: Config = {
         background: "var(--background)",
         foreground: "var(--foreground)",
       },
+      fontFamily: {
+        oswald:     ["var(--font-oswald)", "Impact", "sans-serif"],
+        vietnam:    ["var(--font-be-vietnam)", "Arial", "sans-serif"],
+      },
     },
   },
   plugins: [],

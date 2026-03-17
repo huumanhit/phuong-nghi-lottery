@@ -822,6 +822,184 @@ export async function fetchDailyRegionResult(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Loto statistics for a specific station
+// ---------------------------------------------------------------------------
+
+export interface LotoStatEntry {
+  number: string; // "00" – "99"
+  count: number;
+}
+
+export interface StationLotoStats {
+  stationName: string;
+  region: Region;
+  drawCount: number;
+  stats: LotoStatEntry[]; // sorted by count desc
+}
+
+function extractLoNumsFromResult(result: LotteryResult): string[] {
+  const all = [
+    ...result.special, ...result.first, ...result.second, ...result.third,
+    ...result.fourth, ...result.fifth, ...result.sixth, ...result.seventh, ...result.eighth,
+  ];
+  return all.map((n) => n.slice(-2)).filter((n) => /^\d{2}$/.test(n));
+}
+
+/**
+ * Fetch loto-number frequency stats for a single station by scanning all
+ * RSS items available in the feed (typically the last 7–10 draws).
+ */
+export async function fetchLotoStats(
+  region: Region,
+  stationName: string
+): Promise<StationLotoStats> {
+  try {
+    const response = await fetch(RSS_ENDPOINTS[region], {
+      next: { revalidate: CACHE_TTL_SECONDS },
+      headers: {
+        Accept: "application/rss+xml, application/xml, text/xml, */*",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+    });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const xml = await response.text();
+    const allItems = extractAllRssItemsWithTitle(xml);
+
+    const freq: Record<string, number> = {};
+    let drawCount = 0;
+    const targetSlug = region !== "mb" ? stationSlug(stationName) : null;
+
+    for (const item of allItems) {
+      if (region !== "mb") {
+        const multiStation = parsePlainTextMultiStation(item.description);
+        if (multiStation) {
+          const stationData = multiStation.find(
+            (s) => stationSlug(s.stationName) === targetSlug
+          );
+          if (stationData) {
+            drawCount++;
+            for (const lo of extractLoNumsFromResult(stationData.results)) {
+              freq[lo] = (freq[lo] ?? 0) + 1;
+            }
+          }
+        }
+      } else {
+        const result = parseDescription(item.description);
+        if (result) {
+          drawCount++;
+          for (const lo of extractLoNumsFromResult(result)) {
+            freq[lo] = (freq[lo] ?? 0) + 1;
+          }
+        }
+      }
+    }
+
+    const stats: LotoStatEntry[] = Object.entries(freq)
+      .map(([number, count]) => ({ number, count }))
+      .sort((a, b) => b.count - a.count || a.number.localeCompare(b.number));
+
+    return { stationName, region, drawCount, stats };
+  } catch {
+    return { stationName, region, drawCount: 0, stats: [] };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Region-wide loto frequency statistics
+// ---------------------------------------------------------------------------
+
+export interface LotoFrequencyEntry {
+  number: string;
+  totalAppearances: number;
+  sessionCount: number;
+  lastSeenSessionIdx: number; // 0 = most recent session, -1 = never seen
+}
+
+export interface LotoFrequencyResult {
+  region: Region;
+  totalSessions: number;
+  mostFrequent: LotoFrequencyEntry[];
+  longestAbsent: LotoFrequencyEntry[];
+}
+
+export async function fetchLotoFrequency(region: Region): Promise<LotoFrequencyResult> {
+  const empty: LotoFrequencyResult = { region, totalSessions: 0, mostFrequent: [], longestAbsent: [] };
+  try {
+    const response = await fetch(RSS_ENDPOINTS[region], {
+      next: { revalidate: CACHE_TTL_SECONDS },
+      headers: {
+        Accept: "application/rss+xml, application/xml, text/xml, */*",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const xml = await response.text();
+    const allItems = extractAllRssItemsWithTitle(xml);
+    const totalSessions = allItems.length;
+    if (totalSessions === 0) return empty;
+
+    const freq = new Map<string, { total: number; sessions: Set<number>; lastIdx: number }>();
+
+    for (let i = 0; i < allItems.length; i++) {
+      const item = allItems[i];
+      let loNums: string[] = [];
+
+      if (region !== "mb") {
+        const multiStation = parsePlainTextMultiStation(item.description);
+        if (multiStation) {
+          loNums = multiStation.flatMap((s) => extractLoNumsFromResult(s.results));
+        }
+      } else {
+        const result = parseDescription(item.description);
+        if (result) loNums = extractLoNumsFromResult(result);
+      }
+
+      for (const lo of loNums) {
+        const entry = freq.get(lo) ?? { total: 0, sessions: new Set<number>(), lastIdx: -1 };
+        entry.total++;
+        entry.sessions.add(i);
+        if (entry.lastIdx === -1 || i < entry.lastIdx) entry.lastIdx = i;
+        freq.set(lo, entry);
+      }
+    }
+
+    const all: LotoFrequencyEntry[] = [];
+    for (let n = 0; n <= 99; n++) {
+      const key = String(n).padStart(2, "0");
+      const f = freq.get(key);
+      all.push({
+        number: key,
+        totalAppearances: f?.total ?? 0,
+        sessionCount: f?.sessions.size ?? 0,
+        lastSeenSessionIdx: f?.lastIdx ?? -1,
+      });
+    }
+
+    const mostFrequent = [...all]
+      .sort((a, b) =>
+        b.sessionCount - a.sessionCount ||
+        b.totalAppearances - a.totalAppearances ||
+        a.number.localeCompare(b.number)
+      )
+      .slice(0, 20);
+
+    const absOf = (e: LotoFrequencyEntry) =>
+      e.lastSeenSessionIdx === -1 ? totalSessions : e.lastSeenSessionIdx;
+
+    const longestAbsent = [...all]
+      .sort((a, b) => absOf(b) - absOf(a) || a.number.localeCompare(b.number))
+      .slice(0, 20);
+
+    return { region, totalSessions, mostFrequent, longestAbsent };
+  } catch {
+    return empty;
+  }
+}
+
 export async function fetchAllRegions(): Promise<Record<Region, LotteryServiceResult>> {
   const [mb, mt, mn] = await Promise.all([
     fetchLotteryResult("mb"),

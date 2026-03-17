@@ -70,18 +70,20 @@ export default function Footer() {
         </div>
 
         {/* Right: contact / hotline */}
-        <div className="flex flex-col items-start md:items-end justify-center">
-          <p className="text-red-200 text-xs font-semibold uppercase tracking-wide mb-1">
-            Đổi Vé Trúng Thưởng
+        <div className="flex flex-col items-center justify-center text-center">
+          <p className="text-red-200 text-sm font-bold uppercase tracking-widest mb-1">
+            🎰 Đổi Vé Trúng
           </p>
           <a
             href="tel:0989007772"
-            className="text-yellow-300 font-extrabold tracking-widest leading-tight hover:text-yellow-200 transition-colors"
-            style={{ fontSize: "28px", letterSpacing: "0.06em" }}
+            className="text-yellow-300 font-extrabold leading-tight hover:text-yellow-200 transition-colors"
+            style={{ fontSize: "32px", letterSpacing: "0.08em" }}
           >
             0989 007 772
           </a>
-          <p className="text-red-300 text-xs mt-1">Liên hệ trực tiếp để đổi vé</p>
+          <p className="text-white font-semibold text-sm mt-1 tracking-wide">
+            Gặp Mr.Quân
+          </p>
         </div>
       </div>
 

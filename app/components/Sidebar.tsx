@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { STATION_SCHEDULE, type Region } from "../lib/lotteryData";
+import PromoBanner from "./PromoBanner";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -37,6 +38,9 @@ export default function Sidebar({ activeRegion = "mb" }: SidebarProps) {
 
   return (
     <div className="space-y-4">
+
+      {/* ---- Promo banner ---- */}
+      <PromoBanner />
 
       {/* ---- Xổ số trực tiếp navigation ---- */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden">

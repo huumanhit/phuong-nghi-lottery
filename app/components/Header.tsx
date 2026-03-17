@@ -63,10 +63,12 @@ export default function Header() {
           <Link href="/" className="flex items-center gap-3">
             <Image src="/logo.png" alt="Phương Nghi Logo" width={60} height={60} className="rounded-full" priority />
             <div>
-              <div className="text-white font-extrabold text-2xl tracking-wide leading-tight">
+              <div className="font-oswald text-white font-bold leading-tight"
+                   style={{ fontSize: "26px", letterSpacing: "0.04em" }}>
                 PHƯƠNG NGHI
               </div>
-              <div className="text-yellow-300 text-xs tracking-widest uppercase">
+              <div className="font-vietnam text-yellow-300 font-semibold uppercase"
+                   style={{ fontSize: "11px", letterSpacing: "0.18em" }}>
                 Kết Quả Xổ Số Trực Tiếp
               </div>
             </div>
