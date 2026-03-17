@@ -39,3 +39,34 @@ enum TicketStatus {
   win
   lose
 }
+
+model LotteryResult {
+  id           String   @id @default(uuid())
+  date         DateTime
+  region       String
+  province     String
+  prize8       String?
+  prize7       String?
+  prize6       String?
+  prize5       String?
+  prize4       String?
+  prize3       String?
+  prize2       String?
+  prize1       String?
+  specialPrize String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([date])
+  @@index([region])
+  @@index([province])
+}
+
+model LotterySchedule {
+  id        String   @id @default(uuid())
+  weekday   Int
+  region    String
+  province  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
