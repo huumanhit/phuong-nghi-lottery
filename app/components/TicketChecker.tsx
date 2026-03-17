@@ -71,6 +71,18 @@ function isoToVN(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
+/** Kiểm tra xem hiện tại đã qua giờ quay số chưa (giờ VN = UTC+7) */
+function isAfterDrawTime(region: string): boolean {
+  const now = new Date();
+  const vnMinutes = ((now.getUTCHours() + 7) % 24) * 60 + now.getUTCMinutes();
+  // MB: kết quả lúc ~18:30 | MN/MT: kết quả lúc ~16:30
+  return region === "mb" ? vnMinutes >= 18 * 60 + 35 : vnMinutes >= 16 * 60 + 35;
+}
+
+function getDrawTimeLabel(region: string): string {
+  return region === "mb" ? "18:30" : "16:30";
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -165,6 +177,11 @@ export default function TicketChecker() {
 
   const regionLabel = region === "mb" ? "Miền Bắc" : region === "mt" ? "Miền Trung" : "Miền Nam";
   const regionColor = region === "mb" ? "text-blue-600" : region === "mt" ? "text-orange-600" : "text-green-600";
+
+  // Kiểm tra nếu đang chọn hôm nay mà chưa qua giờ quay số
+  const isToday       = selectedDate === todayIso();
+  const resultPending = isToday && stationId && !isAfterDrawTime(region);
+  const drawTime      = getDrawTimeLabel(region);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -284,11 +301,29 @@ export default function TicketChecker() {
               </div>
             </div>
 
-            {/* Fetch error */}
-            {fetchError && (
-              <div className="px-4 py-3 bg-red-50 border border-red-300 rounded-lg text-red-700 text-sm flex gap-2">
-                <span className="font-bold">⚠</span>
-                <span>{fetchError}</span>
+            {/* Chưa đến giờ quay số hôm nay */}
+            {resultPending && (
+              <div className="px-4 py-3 bg-amber-50 border border-amber-300 rounded-lg text-amber-800 text-sm flex gap-2 items-start">
+                <span className="text-lg leading-none">🕐</span>
+                <div>
+                  <p className="font-bold">Kết quả chưa có</p>
+                  <p className="text-xs mt-0.5 text-amber-700">
+                    Xổ số {regionLabel} quay số lúc <strong>{drawTime}</strong>. Vui lòng quay lại sau.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Fetch error — chỉ hiện khi không phải lỗi "chưa có dữ liệu" */}
+            {fetchError && !resultPending && (
+              <div className="px-4 py-3 bg-amber-50 border border-amber-300 rounded-lg text-amber-800 text-sm flex gap-2 items-start">
+                <span className="text-lg leading-none">📋</span>
+                <div>
+                  <p className="font-bold">Chưa có kết quả cho ngày này</p>
+                  <p className="text-xs mt-0.5 text-amber-700">
+                    Vui lòng kiểm tra lại ngày xổ hoặc thử ngày khác.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -296,9 +331,9 @@ export default function TicketChecker() {
             <div className="flex gap-3">
               <button
                 onClick={handleCheck}
-                disabled={loading || ticketNumber.length !== requiredDigits || !stationId || !selectedDate}
+                disabled={!!resultPending || loading || ticketNumber.length !== requiredDigits || !stationId || !selectedDate}
                 className={`flex-1 py-3 rounded-lg font-bold text-sm transition-all ${
-                  loading || ticketNumber.length !== requiredDigits || !stationId || !selectedDate
+                  resultPending || loading || ticketNumber.length !== requiredDigits || !stationId || !selectedDate
                     ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                     : "bg-red-700 hover:bg-red-800 text-white shadow-md hover:shadow-lg active:scale-95"
                 }`}

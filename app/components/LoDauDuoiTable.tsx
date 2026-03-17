@@ -6,18 +6,17 @@ const PRIZE_ORDER: Array<keyof LotteryResult> = [
   "fifth", "sixth", "seventh", "eighth",
 ];
 
-/** Returns map: đầu (0–9) → list of đuôi digits */
-function buildDauDuoiMap(result: LotteryResult): Record<number, number[]> {
-  const map: Record<number, number[]> = {};
+/** Returns map: đầu (0–9) → list of 2-digit lô numbers */
+function buildDauDuoiMap(result: LotteryResult): Record<number, string[]> {
+  const map: Record<number, string[]> = {};
   for (let i = 0; i <= 9; i++) map[i] = [];
 
   for (const key of PRIZE_ORDER) {
     for (const num of result[key] ?? []) {
       if (num.length >= 2) {
-        const lo   = num.slice(-2);
-        const dau  = parseInt(lo[0], 10);
-        const duoi = parseInt(lo[1], 10);
-        if (!isNaN(dau) && !isNaN(duoi)) map[dau].push(duoi);
+        const lo  = num.slice(-2);
+        const dau = parseInt(lo[0], 10);
+        if (!isNaN(dau)) map[dau].push(lo);
       }
     }
   }
