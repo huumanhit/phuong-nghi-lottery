@@ -44,7 +44,8 @@ const NAV_TABS = [
   { label: "XSMN",  href: "/?region=mn" },
   { label: "XSMT",  href: "/?region=mt" },
   { label: "XSMB",  href: "/?region=mb" },
-  { label: "Dò Vé", href: "/kiem-tra"   },
+  { label: "Dò Vé", href: "/kiem-tra"  },
+  { label: "In Vé", href: "/in-ve-do" },
 ];
 
 // ---------------------------------------------------------------------------
