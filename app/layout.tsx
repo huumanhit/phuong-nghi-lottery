@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Oswald, Be_Vietnam_Pro, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "./components/AuthProvider";
+import { Suspense } from "react";
+import PageTracker from "./components/PageTracker";
 
 const oswald = Oswald({
   subsets: ["latin", "vietnamese"],
@@ -40,7 +42,10 @@ export default function RootLayout({
   return (
     <html lang="vi" className={`${oswald.variable} ${beVietnam.variable} ${playfair.variable}`}>
       <body className="antialiased" style={{ fontFamily: "var(--font-be-vietnam), Arial, sans-serif" }}>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <Suspense fallback={null}><PageTracker /></Suspense>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

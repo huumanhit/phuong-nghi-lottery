@@ -71,6 +71,18 @@ model LotterySchedule {
   updatedAt DateTime @updatedAt
 }
 
+model PageView {
+  id        String   @id @default(uuid())
+  path      String
+  referrer  String   @default("")
+  userAgent String   @default("")
+  ip        String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([path])
+}
+
 model StoreInfo {
   id          String   @id @default("main")
   storeName   String   @default("")
