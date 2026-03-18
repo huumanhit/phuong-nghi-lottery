@@ -7,6 +7,7 @@ import {
   DailyRegionResult,
   extractLoNumbers,
   PRIZE_ORDER,
+  STATION_SCHEDULE,
 } from "../lib/lotteryData";
 import Link from "next/link";
 import CountdownTimer from "./CountdownTimer";
@@ -98,6 +99,17 @@ function buildAnimatedStation(partial: Partial<LotteryResult>): StationResult {
   };
 }
 
+/** Create empty station placeholders for today's draw (all spinner slots) */
+function getTodayStations(r: Region): StationResult[] {
+  const dayOfWeek = new Date().getDay();
+  const names = STATION_SCHEDULE[r][dayOfWeek] ?? [];
+  return names.map((name, i) => ({
+    stationId: `today-${i}`,
+    stationName: name,
+    results: { special: [], first: [], second: [], third: [], fourth: [], fifth: [], sixth: [], seventh: [], eighth: [] },
+  }));
+}
+
 const REGION_NAMES: Record<Region, string> = {
   mb: "MIỀN BẮC",
   mt: "MIỀN TRUNG",
@@ -109,6 +121,14 @@ const DRAW_TIMES: Record<Region, string> = {
   mt: "17:30",
   mn: "16:45",
 };
+
+/** True during the Vietnamese lottery draw window: 14:00 – 21:00 every day.
+ *  All regions draw within this window (MN ~16:00, MT ~17:30, MB ~18:15).
+ */
+function isDuringDrawHours(): boolean {
+  const h = new Date().getHours();
+  return h >= 14 && h < 21;
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -137,11 +157,20 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
   const sequenceMbRef = useRef<{ prize: string; idx: number }[]>([]);
   const intervalRef   = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Live polling state — auto-refresh during draw window
+  const [isLivePolling, setIsLivePolling] = useState(false);
+  const [polledRevealed, setPolledRevealed] = useState<Set<string>>(new Set());
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prevDataRef = useRef<StationResult[]>([]);
+
   // Date state — "selected" drives which tab is active
   const [selectedDate, setSelectedDate]   = useState<string>("");   // "" = today (latest)
   const [dateStations, setDateStations]   = useState<StationResult[] | null>(null);
   const [dateLoading, setDateLoading]     = useState(false);
   const [dateError, setDateError]         = useState<string | null>(null);
+
+  // isDateMode computed early so useEffects below can reference it safely
+  const isDateMode = selectedDate !== "";
 
   // Toolbar feature state
   const [showPrintModal, setShowPrintModal] = useState(false);
@@ -172,6 +201,7 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
       if (r === "mb" && data.stations.length > 0) {
         sequenceMbRef.current = getRevealSequence(data.stations[0].results);
       }
+      prevDataRef.current = data.stations;
       fetchedRef.current.add(r);
     } catch (err) {
       setRegionError((prev) => ({
@@ -181,6 +211,49 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
     } finally {
       setRegionLoading((prev) => ({ ...prev, [r]: false }));
     }
+  }, []);
+
+  /** Silent fetch — no loading spinner, used for live polling */
+  const silentFetchRegion = useCallback(async (r: Region) => {
+    try {
+      const res = await fetch(`/api/lottery/daily?region=${r}`);
+      if (!res.ok) return;
+      const data = (await res.json()) as DailyRegionResult;
+      if (data.error && data.stations.length === 0) return;
+
+      // Detect newly revealed numbers vs previous poll
+      const prev = prevDataRef.current;
+      const newlyRevealed = new Set<string>();
+      data.stations.forEach((newStation, sIdx) => {
+        const prevStation = prev[sIdx];
+        for (const prize of PRIZE_ORDER) {
+          const newNums = newStation.results[prize as keyof LotteryResult] ?? [];
+          const prevNums = prevStation?.results[prize as keyof LotteryResult] ?? [];
+          newNums.forEach((num, idx) => {
+            if (num && !prevNums[idx]) newlyRevealed.add(`${prize}-${idx}`);
+          });
+        }
+      });
+
+      prevDataRef.current = data.stations;
+      setStationData((prev) => ({ ...prev, [r]: data.stations }));
+      setRegionDates((prev) => ({ ...prev, [r]: data.date }));
+      if (r === "mb" && data.stations.length > 0)
+        sequenceMbRef.current = getRevealSequence(data.stations[0].results);
+      fetchedRef.current.add(r);
+
+      if (newlyRevealed.size > 0) {
+        setPolledRevealed((prev) => new Set(Array.from(prev).concat(Array.from(newlyRevealed))));
+        // Clear bounce animation after 1.5 seconds
+        setTimeout(() => {
+          setPolledRevealed((prev) => {
+            const next = new Set(prev);
+            newlyRevealed.forEach((k) => next.delete(k));
+            return next;
+          });
+        }, 1500);
+      }
+    } catch { /* ignore errors during silent polling */ }
   }, []);
 
   useEffect(() => { fetchRegion("mb"); }, [fetchRegion]);
@@ -287,25 +360,83 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
   }, [fetchRegion]);
 
   useEffect(() => {
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    };
   }, []);
+
+  // -------------------------------------------------------------------------
+  // Auto live-polling: active every day 14:00–21:00 when viewing today
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    const stopPolling = () => {
+      if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
+    };
+
+    if (isDateMode) {
+      setIsLivePolling(false);
+      stopPolling();
+      return;
+    }
+
+    const startPolling = () => {
+      if (pollIntervalRef.current) return; // already running
+      pollIntervalRef.current = setInterval(() => silentFetchRegion(region), 12000);
+    };
+
+    const check = () => {
+      // Stop polling if draw is complete (ĐB available) — check current stationData
+      const currentStations = stationData[region];
+      const drawDone = currentStations.length > 0 &&
+        currentStations.every((s) => (s.results.special?.length ?? 0) > 0);
+
+      if (isDuringDrawHours() && !drawDone) {
+        setIsLivePolling(true);
+        startPolling();
+      } else {
+        setIsLivePolling(false);
+        stopPolling();
+      }
+    };
+
+    check();
+    // Re-check every minute to catch 14:00 start and 21:00 end
+    const checkInterval = setInterval(check, 60000);
+    return () => {
+      clearInterval(checkInterval);
+      stopPolling();
+    };
+  }, [region, isDateMode, silentFetchRegion, stationData]);
 
   // -------------------------------------------------------------------------
   // Derived display values
   // -------------------------------------------------------------------------
-  const isDateMode = selectedDate !== "";
   const days = getLast5Days();
 
   const currentLoading = isDateMode ? dateLoading : regionLoading[region];
   const currentError   = isDateMode ? dateError   : (regionError[region] ?? null);
 
   // Build stations array to render
-  // Only use animated partial when isLive (user is watching step-by-step replay)
   const displayStations: StationResult[] = (() => {
     if (isDateMode) return dateStations ?? [];
+
+    const regionDate = regionDates[region] ?? null;
+    const dataIsOld  = regionDate !== null && regionDate !== getTodayVN();
+
     if (region === "mb") {
       if (isLive) return [buildAnimatedStation(partialMb)];
-      return stationData.mb;  // show full results immediately on load
+      // No data or old data → always show today's empty MB station
+      // (spinners appear when isLivePolling=true, "—" otherwise)
+      if (stationData.mb.length === 0 || dataIsOld)
+        return [buildAnimatedStation({})];
+      return stationData.mb;
+    }
+
+    // MT / MN: no/old data → always show today's empty stations for correct province names
+    if (stationData[region].length === 0 || dataIsOld) {
+      const todayStns = getTodayStations(region);
+      if (todayStns.length > 0) return todayStns;
     }
     return stationData[region];
   })();
@@ -322,6 +453,22 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
     ? (selectedDate ? isoToVN(selectedDate) : null)
     : (regionDates[region] ?? null);
   const isOldData = drawDate !== null && drawDate !== today;
+
+  // Draw is complete when ĐB (special/jackpot — drawn last) is filled for ALL stations
+  // Only counts if the API is already returning TODAY's data (not yesterday's)
+  const isDrawComplete = !isDateMode && !isOldData && (() => {
+    const stations = stationData[region];
+    // Must have stations AND all special prizes filled
+    if (stations.length === 0) return false;
+    return stations.every((s) => (s.results.special?.length ?? 0) > 0);
+  })();
+
+  // Today's results exist (even if partial) in the API response
+  const hasTodayData = !isOldData && stationData[region].length > 0;
+
+  // Live mode: polling is on + viewing today + draw not yet done
+  // (we always show today's table — either empty spinners or partial results)
+  const isLiveWithTodayData = isLivePolling && !isDateMode && !isDrawComplete;
 
   // LotoGrid: combined lo numbers
   const loSource: LotteryResult = region === "mb"
@@ -553,15 +700,44 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
         </div>
       </div>
 
-      {/* ---- Waiting banner ---- */}
-      {!isDateMode && isOldData && !isLive && !currentLoading && (
-        <div className="mb-3 flex items-center gap-2 bg-green-50 border border-green-300 rounded-lg px-4 py-2.5">
-          <span className="text-green-600 text-lg">🕐</span>
+      {/* ---- Waiting banner: today's results not yet available ---- */}
+      {!isDateMode && !hasTodayData && !isLive && !currentLoading && (
+        <div className={`mb-3 flex items-center gap-2 rounded-lg px-4 py-2.5 ${
+          isLivePolling
+            ? "bg-red-50 border border-red-300"
+            : "bg-green-50 border border-green-300"
+        }`}>
+          <svg className={`animate-spin flex-shrink-0 ${isLivePolling ? "text-red-500" : "text-green-500"}`} width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/>
+            <path d="M12 3 A9 9 0 0 1 21 12" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+          </svg>
           <div>
-            <p className="text-green-700 font-semibold text-sm">
-              Đang chờ Xổ Số {REGION_NAMES[region]} lúc {DRAW_TIMES[region]}
+            <p className={`font-semibold text-sm ${isLivePolling ? "text-red-700" : "text-green-700"}`}>
+              {isLivePolling
+                ? `Đang chờ kết quả ${REGION_NAMES[region]} — tự động cập nhật mỗi 12 giây`
+                : `Đang chờ Xổ Số ${REGION_NAMES[region]} lúc ${DRAW_TIMES[region]}`}
             </p>
-            <p className="text-green-600 text-xs">Hiển thị kết quả gần nhất</p>
+            <p className={`text-xs ${isLivePolling ? "text-red-500" : "text-green-600"}`}>
+              {isLivePolling
+                ? "Số quay xong sẽ hiện lên, số chưa quay hiển thị ⏳"
+                : "Kết quả sẽ xuất hiện khi xổ số bắt đầu"}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ---- Live polling banner: today's results arriving ---- */}
+      {isLiveWithTodayData && !isLive && !currentLoading && (
+        <div className="mb-3 flex items-center gap-2 bg-red-50 border border-red-400 rounded-lg px-4 py-2.5">
+          <svg className="animate-spin flex-shrink-0 text-red-600" width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/>
+            <path d="M12 3 A9 9 0 0 1 21 12" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+          </svg>
+          <div>
+            <p className="text-red-700 font-semibold text-sm">
+              Đang xổ số trực tiếp — tự động cập nhật mỗi 12 giây
+            </p>
+            <p className="text-red-500 text-xs">Số quay xong sẽ hiện lên, số chưa quay hiển thị ⏳</p>
           </div>
         </div>
       )}
@@ -594,7 +770,12 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
                     ● LIVE
                   </span>
                 )}
-                {!currentLoading && displayStations.length > 0 && !isLive && (
+                {!currentLoading && !isLive && isLiveWithTodayData && (
+                  <span className="bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-full animate-pulse whitespace-nowrap">
+                    ● TRỰC TIẾP
+                  </span>
+                )}
+                {!currentLoading && displayStations.length > 0 && !isLive && !isLiveWithTodayData && (
                   <span className="bg-green-500 text-white text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap">
                     ● KẾT QUẢ
                   </span>
@@ -681,8 +862,13 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
                       <MultiStationTable
                         stations={displayStations}
                         region={region}
-                        revealed={region === "mb" ? revealedMb : new Set()}
-                        isComplete={region === "mb" ? mbComplete : true}
+                        revealed={region === "mb"
+                          ? (isLive ? revealedMb : polledRevealed)
+                          : polledRevealed}
+                        isComplete={region === "mb"
+                          ? (isLive ? mbComplete : !isLiveWithTodayData)
+                          : !isLiveWithTodayData}
+                        isLivePolling={isLiveWithTodayData && !isLive}
                       />
                       <LoDauDuoiTable stations={displayStations} />
                     </>
@@ -846,14 +1032,16 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
               <li className="flex justify-between">
                 <span>Trạng thái:</span>
                 <span className={`font-semibold ${
-                  currentLoading ? "text-yellow-600"
-                  : isLive        ? "text-green-600"
+                  currentLoading      ? "text-yellow-600"
+                  : isLive            ? "text-green-600"
+                  : isLiveWithTodayData ? "text-red-600"
                   : displayStations.length > 0 ? "text-blue-600"
                   : "text-gray-400"
                 }`}>
-                  {currentLoading ? "Đang tải"
-                    : isDateMode ? "Lịch sử"
-                    : isLive     ? "Đang quay"
+                  {currentLoading     ? "Đang tải"
+                    : isDateMode      ? "Lịch sử"
+                    : isLive          ? "Đang quay"
+                    : isLiveWithTodayData ? "Đang xổ số"
                     : displayStations.length > 0 ? "Hoàn tất"
                     : "Chờ quay"}
                 </span>

@@ -4,6 +4,48 @@ import type { LotteryResult, StationResult, Region } from "../lib/lotteryData";
 
 type PrizeKey = keyof LotteryResult;
 
+// ── Spinner icon for unrevealed numbers ───────────────────────────────────────
+function Spinner() {
+  const dots = 8;
+  const r = 8;
+  return (
+    <svg
+      className="animate-spin inline-block"
+      style={{ width: "1em", height: "1em", verticalAlign: "middle" }}
+      viewBox="0 0 24 24"
+    >
+      {Array.from({ length: dots }, (_, i) => {
+        const angle = (i / dots) * 2 * Math.PI - Math.PI / 2;
+        const cx = 12 + r * Math.cos(angle);
+        const cy = 12 + r * Math.sin(angle);
+        const opacity = (i + 1) / dots;
+        return (
+          <circle
+            key={i}
+            cx={cx}
+            cy={cy}
+            r={1.6}
+            fill="#f97316"
+            opacity={opacity}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
+// ── Expected number count per prize for MB ────────────────────────────────────
+const MB_EXPECTED: Partial<Record<PrizeKey, number>> = {
+  special: 1, first: 1, second: 2, third: 6,
+  fourth: 4, fifth: 6, sixth: 3, seventh: 4,
+};
+
+// ── Expected count per prize for MN/MT (per station) ─────────────────────────
+const MNMT_EXPECTED: Partial<Record<PrizeKey, number>> = {
+  eighth: 1, seventh: 1, sixth: 3, fifth: 1,
+  fourth: 7, third: 2, second: 1, first: 1, special: 1,
+};
+
 // ── Display order ─────────────────────────────────────────────────────────────
 const MB_ORDER: PrizeKey[] = [
   "special", "first", "second", "third", "fourth", "fifth", "sixth", "seventh",
@@ -121,6 +163,7 @@ interface Props {
   region?: Region;
   revealed?: Set<string>;
   isComplete?: boolean;
+  isLivePolling?: boolean;
 }
 
 export default function MultiStationTable({
@@ -128,6 +171,7 @@ export default function MultiStationTable({
   region = "mb",
   revealed = new Set(),
   isComplete = true,
+  isLivePolling = false,
 }: Props) {
   if (stations.length === 0) return null;
 
@@ -169,9 +213,12 @@ export default function MultiStationTable({
                 const rowBg = getRowBg(prizeKey, prizeIdx);
 
                 // Chunk numbers into rows of `cols`
-                const rows: string[][] = [];
-                for (let i = 0; i < Math.max(numbers.length, 1); i += cols) {
-                  rows.push(numbers.slice(i, i + cols));
+                // When live polling, pad to expected count so spinners show
+                const expectedCount = isLivePolling ? (MB_EXPECTED[prizeKey] ?? numbers.length) : numbers.length;
+                const effectiveCount = Math.max(numbers.length, isLivePolling ? expectedCount : 1);
+                const rows: (string | null)[][] = [];
+                for (let i = 0; i < effectiveCount; i += cols) {
+                  rows.push(Array.from({ length: cols }, (_, j) => numbers[i + j] ?? null));
                 }
 
                 const fontSize = MB_FONT_SIZE[prizeKey] ?? "14px";
@@ -186,31 +233,38 @@ export default function MultiStationTable({
 
                     {/* All numbers in one cell */}
                     <td className="py-1.5 px-2">
-                      {numbers.length === 0 ? (
-                        <span className="text-gray-300 text-xs">—</span>
-                      ) : (
-                        <div className="flex flex-col items-center" style={{ gap: "2px" }}>
-                          {rows.map((rowNums, rIdx) => (
-                            <div key={rIdx} className="flex justify-center" style={{ gap }}>
-                              {rowNums.map((num, nIdx) => {
-                                const globalIdx = rIdx * cols + nIdx;
-                                const isNew = revealed.has(`${prizeKey}-${globalIdx}`) && !isComplete;
+                      <div className="flex flex-col items-center" style={{ gap: "2px" }}>
+                        {rows.map((rowNums, rIdx) => (
+                          <div key={rIdx} className="flex justify-center" style={{ gap }}>
+                            {rowNums.map((num, nIdx) => {
+                              const globalIdx = rIdx * cols + nIdx;
+                              const isNew = revealed.has(`${prizeKey}-${globalIdx}`) && !isComplete;
+                              if (num == null) {
                                 return (
                                   <span
                                     key={nIdx}
-                                    className={`inline-block transition-all duration-500 ${numClass} ${
-                                      isNew ? "scale-125 animate-bounce" : ""
-                                    }`}
-                                    style={{ fontSize, lineHeight: "1.3" }}
+                                    className="inline-flex items-center justify-center"
+                                    style={{ fontSize, lineHeight: "1.3", minWidth: "2ch" }}
                                   >
-                                    {num}
+                                    <Spinner />
                                   </span>
                                 );
-                              })}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                              }
+                              return (
+                                <span
+                                  key={nIdx}
+                                  className={`inline-block transition-all duration-500 ${numClass} ${
+                                    isNew ? "scale-125 animate-bounce" : ""
+                                  }`}
+                                  style={{ fontSize, lineHeight: "1.3" }}
+                                >
+                                  {num}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -223,10 +277,12 @@ export default function MultiStationTable({
                   stations.some((s) => (s.results.eighth ?? []).length > 0)
                 )
                 .flatMap((prizeKey, prizeIdx) => {
-                  const maxCount = Math.max(
-                    1,
+                  const rawCount = Math.max(
+                    0,
                     ...stations.map((s) => (s.results[prizeKey] ?? []).length)
                   );
+                  const expectedPerStation = isLivePolling ? (MNMT_EXPECTED[prizeKey] ?? rawCount) : rawCount;
+                  const maxCount = Math.max(1, rawCount, isLivePolling ? expectedPerStation : 0);
 
                   return Array.from({ length: maxCount }, (_, rowIdx) => {
                     const isFirstSubRow = rowIdx === 0;
@@ -271,7 +327,9 @@ export default function MultiStationTable({
                                     {num}
                                   </span>
                                 ) : (
-                                  <span className="text-gray-300 text-xs">—</span>
+                                  <span className="inline-flex items-center justify-center" style={{ fontSize, lineHeight: "1.4", minWidth: "2ch" }}>
+                                    <Spinner />
+                                  </span>
                                 )}
                               </td>
                             );
