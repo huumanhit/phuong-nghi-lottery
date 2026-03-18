@@ -8,14 +8,14 @@ interface Props {
 }
 
 const PRIZE_COLORS: Record<string, string> = {
-  special: "bg-red-600 text-white text-2xl font-extrabold",
-  first: "text-red-700 text-xl font-bold",
-  second: "text-blue-700 text-lg font-bold",
-  third: "text-green-700 font-semibold",
-  fourth: "text-gray-800 font-semibold",
-  fifth: "text-gray-800 font-semibold",
-  sixth: "text-gray-800 font-semibold",
-  seventh: "text-gray-800 font-semibold",
+  special: "bg-red-600 text-white text-3xl font-extrabold",
+  first: "text-red-700 text-2xl font-bold",
+  second: "text-blue-700 text-xl font-bold",
+  third: "text-green-700 text-lg font-semibold",
+  fourth: "text-gray-800 text-base font-semibold",
+  fifth: "text-gray-800 text-base font-semibold",
+  sixth: "text-gray-800 text-base font-semibold",
+  seventh: "text-gray-800 text-base font-semibold",
 };
 
 function NumberCell({ number, isNew }: { number: string; isNew?: boolean }) {
@@ -62,7 +62,7 @@ export default function LotteryTable({ result, revealed, isComplete }: Props) {
                           key={i}
                           className={`${
                             isSpecial
-                              ? "bg-red-100 border-2 border-red-600 rounded-lg px-3 py-1 text-3xl text-red-700 font-extrabold shadow-md"
+                              ? "bg-red-100 border-2 border-red-600 rounded-lg px-3 py-1 text-4xl text-red-700 font-extrabold shadow-md"
                               : ""
                           }`}
                         >

@@ -40,7 +40,7 @@ export default function Sidebar({ activeRegion = "mb" }: SidebarProps) {
     <div className="space-y-4">
 
       {/* ---- Promo banner ---- */}
-      <PromoBanner />
+      <PromoBanner hideBrand />
 
       {/* ---- Xổ số trực tiếp navigation ---- */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden">

@@ -60,7 +60,7 @@ function LuckyCoin() {
   );
 }
 
-export default function PromoBanner() {
+export default function PromoBanner({ hideBrand = false }: { hideBrand?: boolean }) {
   const [msgIdx, setMsgIdx]   = useState(0);
   const [visible, setVisible] = useState(true);
 
@@ -111,19 +111,31 @@ export default function PromoBanner() {
           }} />
 
           {/* Content row */}
-          <div className="relative flex items-center px-3 sm:px-5 py-2 gap-3 sm:gap-5">
+          <div className="relative flex items-center px-3 py-2 gap-3">
 
-            {/* Left — custom lucky coin, floating */}
-            <div className="flex-shrink-0" style={{ animation: "float 2.2s ease-in-out infinite" }}>
-              <LuckyCoin />
+            {/* Left — coin + brand text */}
+            <div className="flex-shrink-0 flex items-center gap-2">
+              <div style={{ animation: "float 2.2s ease-in-out infinite" }}>
+                <LuckyCoin />
+              </div>
+              {!hideBrand && (
+                <div className="hidden sm:block text-center leading-snug">
+                  <div style={{ fontSize: "12px", fontWeight: 700, color: "#FFE566", letterSpacing: "0.1em", textTransform: "uppercase", textShadow: "0 1px 3px rgba(0,0,0,0.5)" }}>
+                    Hệ Thống Bán Lẻ Vé Số
+                  </div>
+                  <div style={{ fontSize: "18px", fontWeight: 900, color: "#FFD700", letterSpacing: "0.06em", textTransform: "uppercase", textShadow: "0 0 10px rgba(255,215,0,0.8)", animation: "glow 2s ease-in-out infinite" }}>
+                    PHƯƠNG NGHI
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Center text */}
-            <div className="flex-1 text-center min-w-0">
+            <div className="flex-1 text-center min-w-0 overflow-hidden">
               <div
                 className="font-extrabold uppercase tracking-[0.22em]"
                 style={{
-                  fontSize: "10px",
+                  fontSize: "13px",
                   color: "#FFD700",
                   textShadow: "0 0 10px rgba(255,215,0,1)",
                   animation: "glow 2s ease-in-out infinite",
@@ -135,7 +147,7 @@ export default function PromoBanner() {
               <div
                 className="font-black leading-none my-0.5 whitespace-nowrap"
                 style={{
-                  fontSize: "clamp(18px, 5vw, 32px)",
+                  fontSize: hideBrand ? "clamp(13px, 2.5vw, 16px)" : "clamp(16px, 4.5vw, 28px)",
                   color: "#FFFFFF",
                   textShadow: "0 2px 10px rgba(0,0,0,0.6), 0 0 24px rgba(255,200,0,0.5)",
                   animation: "phonePulse 1.3s ease-in-out infinite",
@@ -146,7 +158,7 @@ export default function PromoBanner() {
               </div>
 
               <div style={{
-                fontSize: "10px",
+                fontSize: "13px",
                 fontWeight: 700,
                 color: "#FFE566",
                 letterSpacing: "0.13em",
@@ -173,7 +185,7 @@ export default function PromoBanner() {
               >
                 📞
               </div>
-              <span style={{ fontSize: "8px", fontWeight: 800, color: "#FFD700", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              <span style={{ fontSize: "11px", fontWeight: 800, color: "#FFD700", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                 Gọi ngay
               </span>
             </div>

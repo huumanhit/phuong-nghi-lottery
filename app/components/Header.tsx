@@ -64,16 +64,27 @@ export default function Header() {
           <Link href="/" className="flex items-center gap-3">
             <Image src="/logo.png" alt="Phương Nghi Logo" width={60} height={60} className="rounded-full" priority />
             <div>
-              <div className="font-oswald text-white font-bold leading-tight"
-                   style={{ fontSize: "26px", letterSpacing: "0.04em" }}>
+              <div className="font-playfair font-black leading-tight"
+                   style={{ fontSize: "clamp(22px, 5vw, 34px)", letterSpacing: "0.02em", animation: "headerGlow 1.8s ease-in-out infinite", color: "#ffffff" }}>
                 PHƯƠNG NGHI
               </div>
-              <div className="font-vietnam text-yellow-300 font-semibold uppercase"
-                   style={{ fontSize: "11px", letterSpacing: "0.18em" }}>
+              <div className="font-playfair font-bold italic"
+                   style={{ fontSize: "13px", letterSpacing: "0.06em", animation: "subBlink 1.8s ease-in-out infinite", color: "#fde047" }}>
                 Kết Quả Xổ Số Trực Tiếp
               </div>
             </div>
           </Link>
+
+          <style>{`
+            @keyframes headerGlow {
+              0%, 100% { color: #ffffff; text-shadow: 0 0 8px rgba(255,215,0,0.4); }
+              50%       { color: #FFD700; text-shadow: 0 0 18px rgba(255,215,0,1), 0 0 32px rgba(255,150,0,0.6); }
+            }
+            @keyframes subBlink {
+              0%, 100% { color: #fde047; opacity: 1; }
+              50%       { color: #ffffff; opacity: 0.85; }
+            }
+          `}</style>
 
           <div className="flex items-center gap-2">
             {/* Auth button */}

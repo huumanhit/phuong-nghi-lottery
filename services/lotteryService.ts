@@ -443,10 +443,10 @@ export async function getLotteryByDate(
           (s) => stationSlug(s.stationName) === targetSlug
         );
         if (stationData) {
-          return { data: stationData.results, date, region, error: null };
+          return { data: normalizeMnMtResult(stationData.results), date, region, error: null };
         }
         // Station not found in today's draw — return first available station
-        return { data: multiStation[0].results, date, region, error: null };
+        return { data: normalizeMnMtResult(multiStation[0].results), date, region, error: null };
       }
     }
 
@@ -525,6 +525,35 @@ function parseStationFromTitle(title: string, region: Region): string | null {
 function isoToVN(iso: string): string {
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
+}
+
+/**
+ * Normalize MT/MN results from xskt.com.vn compact format.
+ *
+ * xskt.com.vn packs G7 + G6 + G8 on one line:
+ *   "7: 7128 - 8148 - 4568 - 8934: 48"
+ *   → first number before ":" = G7 encoded as 4-digit (correct G7 = first 3 digits → "712")
+ *   → remaining numbers before ":" = G6 (4-digit each, no truncation)
+ *   → number after ":" = G8 (2-digit, already correct)
+ *
+ * So if G7 was parsed with multiple numbers (the extra ones are really G6),
+ * we redistribute: seventh = [first_number.slice(0,3)], sixth = remaining_numbers
+ */
+function normalizeMnMtResult(r: LotteryResult): LotteryResult {
+  const g7raw = r.seventh;
+
+  // G7: keep only the first number, take its first 3 digits
+  const g7 = g7raw.length > 0
+    ? [g7raw[0].length > 3 ? g7raw[0].slice(0, 3) : g7raw[0]]
+    : [];
+
+  // Extra numbers after G7 (index 1+) are actually G6 numbers
+  // — but only use them if G6 is currently empty (avoid double-counting)
+  const g6 = (g7raw.length > 1 && r.sixth.length === 0)
+    ? g7raw.slice(1)   // 4-digit G6 numbers
+    : r.sixth;
+
+  return { ...r, seventh: g7, sixth: g6 };
 }
 
 /** Safely convert a Partial<LotteryResult> to a full LotteryResult. */
@@ -663,14 +692,22 @@ function parsePlainTextMultiStation(
 
       const afterLabel = line.slice(colonIdx + 1).trim();
 
-      // "7: XXXX: YY" → seventh = XXXX, eighth = YY (xskt.com.vn compact notation)
+      // xskt.com.vn compact format: "7: 7128 - 8148 - 4568 - 8934: 48"
+      //   → before ":" : first number = G7 (4-digit encoding → take first 3 digits)
+      //                  remaining numbers = G6 (4-digit each, correct as-is)
+      //   → after  ":" : G8 (2-digit)
       if (key === "seventh") {
         const secondColon = afterLabel.indexOf(":");
         if (secondColon !== -1) {
-          const seventhNums = extractNumbers(afterLabel.slice(0, secondColon));
-          const eighthNums  = extractNumbers(afterLabel.slice(secondColon + 1));
-          if (seventhNums.length > 0) result.seventh = seventhNums;
-          if (eighthNums.length > 0)  result.eighth  = eighthNums;
+          const allBeforeColon = extractNumbers(afterLabel.slice(0, secondColon));
+          const eighthNums     = extractNumbers(afterLabel.slice(secondColon + 1));
+          if (allBeforeColon.length > 0) {
+            const g7raw = allBeforeColon[0];
+            result.seventh = [g7raw.length > 3 ? g7raw.slice(0, 3) : g7raw];
+            // Remaining numbers are G6 (4-digit)
+            if (allBeforeColon.length > 1) result.sixth = allBeforeColon.slice(1);
+          }
+          if (eighthNums.length > 0) result.eighth = eighthNums;
           continue;
         }
       }
@@ -746,7 +783,7 @@ export async function fetchDailyRegionResult(
           stations: multiStation.map((s) => ({
             stationId: stationSlug(s.stationName),
             stationName: s.stationName,
-            results: s.results,
+            results: normalizeMnMtResult(s.results),
           })),
           error: null,
         };
@@ -792,20 +829,21 @@ export async function fetchDailyRegionResult(
           stations: scheduledNames.map((name, i) => ({
             stationId: stationSlug(name),
             stationName: name,
-            results: toFullResult(perStation[i]),
+            results: normalizeMnMtResult(toFullResult(perStation[i])),
           })),
           error: null,
         };
       }
 
       // Last resort: same result for all stations
+      const normalized = normalizeMnMtResult(stationResults[0].results);
       return {
         date: targetDate,
         region,
         stations: scheduledNames.map((name) => ({
           stationId: stationSlug(name),
           stationName: name,
-          results: stationResults[0].results,
+          results: normalized,
         })),
         error: null,
       };

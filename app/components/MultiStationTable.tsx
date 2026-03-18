@@ -60,40 +60,47 @@ function getMnMtNumClass(prizeKey: PrizeKey, stationIdx: number): string {
   }
 }
 
-// ── Font size per prize (inline style for pixel-perfect sizing) ───────────────
+// ── Font size per prize — clamp() scales from mobile to desktop ───────────────
 const MB_FONT_SIZE: Partial<Record<PrizeKey, string>> = {
-  special: "28px",
-  first:   "22px",
-  second:  "18px",
-  third:   "14px",
-  fourth:  "14px",
-  fifth:   "14px",
-  sixth:   "14px",
-  seventh: "20px",
+  special: "clamp(28px, 7vw, 48px)",
+  first:   "clamp(22px, 5.5vw, 36px)",
+  second:  "clamp(18px, 4.5vw, 30px)",
+  third:   "clamp(15px, 3.5vw, 24px)",
+  fourth:  "clamp(14px, 3vw, 22px)",
+  fifth:   "clamp(14px, 3vw, 22px)",
+  sixth:   "clamp(14px, 3vw, 22px)",
+  seventh: "clamp(18px, 4vw, 28px)",
 };
 
-const MNMT_FONT_SIZE: Partial<Record<PrizeKey, string>> = {
-  special: "24px",
-  first:   "14px",
-  second:  "14px",
-  third:   "14px",
-  fourth:  "13px",
-  fifth:   "13px",
-  sixth:   "13px",
-  seventh: "14px",
-  eighth:  "20px",
+// Base font sizes for 3-station layout (px) — scales with station count
+const MNMT_BASE_PX: Partial<Record<PrizeKey, number>> = {
+  special: 26,
+  first:   21,
+  second:  21,
+  third:   15,
+  fourth:  14,
+  fifth:   16,
+  sixth:   16,
+  seventh: 26,
+  eighth:  40,
 };
+
+function getMnMtFontSize(key: PrizeKey, stationCount: number): string {
+  const base = MNMT_BASE_PX[key] ?? 14;
+  const scale = stationCount <= 2 ? 1.25 : stationCount <= 3 ? 1 : stationCount <= 4 ? 0.8 : 0.68;
+  return `${Math.round(base * scale)}px`;
+}
 
 // ── Gap between numbers in a row ──────────────────────────────────────────────
 const MB_GAP: Partial<Record<PrizeKey, string>> = {
-  special: "16px",
-  first:   "12px",
-  second:  "20px",
-  third:   "12px",
-  fourth:  "12px",
-  fifth:   "12px",
-  sixth:   "16px",
-  seventh: "16px",
+  special: "clamp(8px, 2vw, 16px)",
+  first:   "clamp(6px, 1.5vw, 12px)",
+  second:  "clamp(10px, 2.5vw, 20px)",
+  third:   "clamp(6px, 1.5vw, 12px)",
+  fourth:  "clamp(6px, 1.5vw, 12px)",
+  fifth:   "clamp(6px, 1.5vw, 12px)",
+  sixth:   "clamp(8px, 2vw, 16px)",
+  seventh: "clamp(8px, 2vw, 16px)",
 };
 
 // ── Label cell background ─────────────────────────────────────────────────────
@@ -131,19 +138,19 @@ export default function MultiStationTable({
   return (
     <div className="overflow-x-auto rounded-lg border border-red-200 shadow-md">
       <table
-        className="w-full text-center border-collapse bg-white min-w-[320px]"
+        className="w-full text-center border-collapse bg-white"
         style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
       >
         {/* ── Header ── */}
         <thead>
           <tr className="bg-red-700 text-white">
-            <th className="py-2 px-2 text-xs font-bold border-r border-red-500 whitespace-nowrap text-red-200 w-14">
+            <th className="py-1.5 px-1 text-xs font-bold border-r border-red-500 whitespace-nowrap text-red-200 w-10">
               CN
             </th>
             {stations.map((s) => (
               <th
                 key={s.stationId}
-                className="py-2 px-2 text-sm font-bold border-r border-red-500 last:border-r-0 text-center leading-tight"
+                className="py-1.5 px-1 text-xs font-bold border-r border-red-500 last:border-r-0 text-center leading-tight"
               >
                 {s.stationName}
               </th>
@@ -173,12 +180,12 @@ export default function MultiStationTable({
                 return (
                   <tr key={prizeKey} className={`border-b border-gray-200 ${rowBg}`}>
                     {/* Label */}
-                    <td className={`py-2 px-2 text-xs font-extrabold border-r border-red-200 align-middle whitespace-nowrap w-14 ${getLabelBg(prizeKey)}`}>
+                    <td className={`py-1.5 px-1 text-xs font-extrabold border-r border-red-200 align-middle whitespace-nowrap w-10 ${getLabelBg(prizeKey)}`}>
                       {labels[prizeKey]}
                     </td>
 
                     {/* All numbers in one cell */}
-                    <td className="py-1.5 px-3">
+                    <td className="py-1.5 px-2">
                       {numbers.length === 0 ? (
                         <span className="text-gray-300 text-xs">—</span>
                       ) : (
@@ -232,7 +239,7 @@ export default function MultiStationTable({
                           {isFirstSubRow && (
                             <td
                               rowSpan={maxCount}
-                              className={`py-1.5 px-2 text-xs font-extrabold border-r border-red-200 align-middle whitespace-nowrap ${getLabelBg(prizeKey)}`}
+                              className={`py-1 px-1 text-xs font-extrabold border-r border-red-200 align-middle whitespace-nowrap w-10 ${getLabelBg(prizeKey)}`}
                             >
                               <div>{labels[prizeKey]}</div>
                               <div className="text-[9px] font-normal mt-0.5 opacity-80">
@@ -247,12 +254,12 @@ export default function MultiStationTable({
                             const revealKey = `${prizeKey}-${rowIdx}`;
                             const isNew = revealed.has(revealKey) && !isComplete;
                             const numClass  = getMnMtNumClass(prizeKey, sIdx);
-                            const fontSize  = MNMT_FONT_SIZE[prizeKey] ?? "14px";
+                            const fontSize  = getMnMtFontSize(prizeKey, stations.length);
 
                             return (
                               <td
                                 key={s.stationId}
-                                className="py-1 px-2 border-r border-gray-100 last:border-r-0 text-center"
+                                className="py-0.5 px-1 border-r border-gray-100 last:border-r-0 text-center"
                               >
                                 {num != null ? (
                                   <span

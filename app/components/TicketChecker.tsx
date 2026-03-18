@@ -35,8 +35,36 @@ function getStationsByDate(dateIso: string) {
 // ---------------------------------------------------------------------------
 
 const PRIZE_ORDER: Array<keyof LotteryResult> = [
-  "special", "first", "second", "third", "fourth", "fifth", "sixth", "seventh",
+  "special", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth",
 ];
+
+// Prize money by region
+const MNMT_PRIZE_MONEY: Partial<Record<keyof LotteryResult, number>> = {
+  special: 2_000_000_000,
+  first:      30_000_000,
+  second:     15_000_000,
+  third:      10_000_000,
+  fourth:      3_000_000,
+  fifth:       1_000_000,
+  sixth:         400_000,
+  seventh:       200_000,
+  eighth:        100_000,
+};
+
+const MB_PRIZE_MONEY: Partial<Record<keyof LotteryResult, number>> = {
+  special: 2_000_000_000,
+  first:      10_000_000,
+  second:       5_000_000,
+  third:        1_000_000,
+  fourth:         400_000,
+  fifth:          200_000,
+  sixth:          100_000,
+  seventh:         40_000,
+};
+
+function formatMoney(amount: number): string {
+  return amount.toLocaleString("vi-VN") + "đ";
+}
 
 interface WinResult {
   prizeKey:      keyof LotteryResult;
@@ -363,30 +391,64 @@ export default function TicketChecker() {
         {/* Result */}
         {checked && !fetchError && (
           <div className="mt-5 rounded-xl shadow-md overflow-hidden">
-            {winResult ? (
-              <div className="bg-green-600">
-                <div className="px-5 py-4 text-center">
-                  <div className="text-5xl mb-2">🎉</div>
-                  <div className="text-white font-extrabold text-2xl">TRÚNG THƯỞNG!</div>
-                  <div className="text-green-100 text-sm mt-1">
-                    Vé số <span className="font-bold text-white">{ticketNumber}</span>
-                    {" "}— {selectedStation?.name} — ngày {isoToVN(selectedDate)}
+            {winResult ? (() => {
+              const prizeMap = region === "mb" ? MB_PRIZE_MONEY : MNMT_PRIZE_MONEY;
+              const prizeAmount = prizeMap[winResult.prizeKey];
+              // Highlight matched digits in ticket number
+              const prefixLen = ticketNumber.length - winResult.matchedNumber.length;
+              const prefix = ticketNumber.slice(0, prefixLen);
+              const matched = ticketNumber.slice(prefixLen);
+              return (
+                <div>
+                  {/* Header — gold gradient */}
+                  <div className="bg-gradient-to-b from-yellow-400 to-amber-500 px-5 py-5 text-center">
+                    <div className="text-4xl mb-1">🎉</div>
+                    <div className="text-red-800 font-extrabold text-2xl leading-tight">Chúc mừng bạn!</div>
+                    <div className="text-red-700 text-sm mt-1 font-semibold">
+                      Vé số của bạn đã trúng <span className="font-extrabold">{winResult.prizeLabel}</span>
+                    </div>
+                  </div>
+
+                  {/* Ticket number with highlight */}
+                  <div className="bg-amber-50 px-5 py-3 text-center border-b border-amber-200">
+                    <p className="text-xs text-gray-500 mb-1">Dãy số vé</p>
+                    <div className="text-3xl font-extrabold tracking-widest">
+                      <span className="text-gray-400">{prefix}</span>
+                      <span className="text-red-600">{matched}</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Khớp <span className="font-bold text-red-600">{winResult.matchedNumber}</span> của {winResult.prizeLabel} — {selectedStation?.name} — {isoToVN(selectedDate)}
+                    </p>
+                  </div>
+
+                  {/* Prize info table */}
+                  <div className="bg-white px-5 py-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-red-50 rounded-lg p-3 text-center">
+                        <p className="text-xs text-gray-500 mb-1">Giải trúng</p>
+                        <p className="text-red-700 font-extrabold text-lg leading-tight">{winResult.prizeLabel}</p>
+                      </div>
+                      <div className="bg-green-50 rounded-lg p-3 text-center">
+                        <p className="text-xs text-gray-500 mb-1">Tiền thưởng</p>
+                        <p className="text-green-700 font-extrabold text-lg leading-tight">
+                          {prizeAmount ? formatMoney(prizeAmount) : "—"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {prizeAmount && prizeAmount >= 10_000_000 && (
+                      <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 text-center">
+                        ⚠️ Giải từ 10 triệu trở lên cần đến <strong>Công ty Xổ Số</strong> để nhận thưởng
+                      </div>
+                    )}
+
+                    <div className="mt-3 border-t border-gray-100 pt-3 text-xs text-gray-400 text-center">
+                      Vui lòng đến đại lý xổ số để nhận thưởng trong vòng <strong>30 ngày</strong> kể từ ngày xổ
+                    </div>
                   </div>
                 </div>
-                <div className="bg-white mx-4 mb-4 rounded-lg p-4 text-center">
-                  <p className="text-gray-500 text-xs mb-1">Giải thưởng</p>
-                  <p className="text-red-700 font-extrabold text-3xl">{winResult.prizeLabel}</p>
-                  <p className="text-gray-400 text-xs mt-2">
-                    Khớp với số <span className="font-bold text-gray-700">{winResult.matchedNumber}</span>
-                  </p>
-                </div>
-                <div className="px-4 pb-4">
-                  <p className="text-green-100 text-xs text-center">
-                    Vui lòng đến đại lý xổ số để nhận thưởng trong vòng 60 ngày kể từ ngày xổ
-                  </p>
-                </div>
-              </div>
-            ) : (
+              );
+            })() : (
               <div className="bg-white border border-gray-200">
                 <div className="px-5 py-6 text-center">
                   <div className="text-5xl mb-3">😔</div>

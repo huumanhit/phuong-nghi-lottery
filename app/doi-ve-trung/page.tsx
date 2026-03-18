@@ -27,7 +27,7 @@ const PRIZES = [
 
 const STEPS = [
   { step: "01", title: "Kiểm Tra Vé",  desc: "Dò vé số tại trang Kiểm Tra Vé hoặc đối chiếu bảng kết quả xổ số chính thức." },
-  { step: "02", title: "Mang Vé Đến",  desc: "Mang vé số trúng còn nguyên vẹn đến Đại lý Phương Nghi trong vòng 60 ngày kể từ ngày xổ." },
+  { step: "02", title: "Mang Vé Đến",  desc: "Mang vé số trúng còn nguyên vẹn đến Đại lý Phương Nghi trong vòng 30 ngày kể từ ngày xổ." },
   { step: "03", title: "Xác Thực Vé",  desc: "Nhân viên kiểm tra, xác thực mã vé số và giải trúng thưởng của bạn." },
   { step: "04", title: "Nhận Tiền",    desc: "Nhận tiền thưởng ngay tại đại lý (giải nhỏ) hoặc hỗ trợ làm thủ tục tại Công ty Xổ Số (giải lớn)." },
 ];
@@ -181,7 +181,7 @@ export default function DoiVeTrungPage() {
           <p className="text-orange-800 font-bold text-sm mb-1">⚠ Lưu ý quan trọng</p>
           <ul className="text-xs text-orange-700 space-y-1 leading-relaxed">
             <li>• Vé số trúng phải còn nguyên vẹn, không rách, không tẩy xóa.</li>
-            <li>• Thời hạn đổi thưởng: <strong>60 ngày</strong> kể từ ngày xổ.</li>
+            <li>• Thời hạn đổi thưởng: <strong>30 ngày</strong> kể từ ngày xổ.</li>
             <li>• Vui lòng mang theo CMND/CCCD khi đến đổi thưởng giải lớn.</li>
             <li>• Giải đặc biệt và giải lớn có thể cần làm thủ tục tại Công ty Xổ Số tỉnh.</li>
           </ul>

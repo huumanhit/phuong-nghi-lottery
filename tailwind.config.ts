@@ -15,6 +15,7 @@ const config: Config = {
       fontFamily: {
         oswald:     ["var(--font-oswald)", "Impact", "sans-serif"],
         vietnam:    ["var(--font-be-vietnam)", "Arial", "sans-serif"],
+        playfair:   ["var(--font-playfair)", "Georgia", "serif"],
       },
     },
   },

@@ -132,7 +132,7 @@ export function buildTicketHTML(
 /** Open a print window with an array of ticket HTMLs */
 export function openPrintWindow(tickets: string[], layout: PrintLayout): void {
   const cols   = layout === "1x1" ? 1 : layout === "4x1" ? 2 : 3;
-  const fs     = layout === "6x1" ? "7px" : layout === "4x1" ? "8px" : "11px";
+  const fs     = layout === "6x1" ? "12px" : layout === "4x1" ? "15px" : "22px";
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>In Vé Dò</title><style>
     *{box-sizing:border-box;margin:0;padding:0}
