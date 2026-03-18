@@ -65,7 +65,7 @@ export function buildTableHTML(stns: StationResult[], isMb: boolean): string {
       const lblBg = isDB ? "background:#cc0000;color:#fff;" : "";
       return `<tr style="${rowBg}">
         <td class="lbl" style="${lblBg}">${label}</td>
-        <td class="nums" style="${numStyle}">${nums.join("&nbsp;&nbsp;&nbsp;")}</td>
+        <td class="nums" style="${numStyle}">${nums.join("  ")}</td>
       </tr>`;
     }).filter(Boolean).join("");
 
@@ -122,10 +122,14 @@ export function buildTicketHTML(
 ): string {
   const tableHTML = buildTableHTML(stns, isMb);
   return `<div class="ticket">
-    <div class="tit">ĐẠI LÝ VÉ SỐ PHƯƠNG NGHI</div>
-    <div class="sub2">BỘ VÉ PHÓNG TO BÁN HÓA ĐƠN HÀNG TUẦN</div>
-    <div class="dat">${dateLabel}</div>
-    ${tableHTML}
+    <div class="hdr">
+      <div class="tit">ĐẠI LÝ VÉ SỐ PHƯƠNG NGHI</div>
+      <div class="sub2">Hãy Đến Với Chúng Tôi Để Thay Đổi Cuộc Đời Bạn</div>
+    </div>
+    <div class="bp">
+      <div class="dat">${dateLabel}</div>
+      ${tableHTML}
+    </div>
   </div>`;
 }
 
@@ -134,20 +138,24 @@ export function openPrintWindow(tickets: string[], layout: PrintLayout): void {
   const cols   = layout === "1x1" ? 1 : layout === "4x1" ? 2 : 3;
   const fs     = layout === "6x1" ? "12px" : layout === "4x1" ? "15px" : "22px";
 
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>In Vé Dò</title><style>
+  const origin = window.location.origin;
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>In Vé Dò - Phương Nghi</title><link rel="icon" type="image/png" href="${origin}/logo.png"><style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,Helvetica,sans-serif;font-size:${fs}}
-    .container{display:grid;grid-template-columns:repeat(${cols},1fr);gap:4px;padding:4px}
-    .ticket{border:1px dashed #999;padding:5px 4px 4px;break-inside:avoid;page-break-inside:avoid}
-    .tit{font-weight:900;color:#cc0000;text-align:center;font-size:1.15em;line-height:1.3;text-transform:uppercase}
-    .sub2{text-align:center;color:#555;font-size:.82em;margin-top:1px}
-    .dat{text-align:center;font-weight:700;color:#333;font-size:.9em;margin:2px 0 3px}
-    .stn-name{text-align:center;font-weight:900;color:#cc0000;font-size:1em;margin-bottom:2px;text-transform:uppercase}
-    table{width:100%;border-collapse:collapse;margin-top:2px}
-    .lbl{width:22px;font-weight:900;color:#cc0000;padding:1px 2px;white-space:nowrap;vertical-align:middle;border:1px solid #ddd;text-align:center;background:#fff3f3}
-    .nums{padding:1px 4px;vertical-align:middle;border:1px solid #ddd;text-align:center}
-    @page{margin:4mm}
-    @media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+    body{font-family:Arial,Helvetica,sans-serif;font-size:${fs};background:#e8e8e8}
+    .container{display:grid;grid-template-columns:repeat(${cols},1fr);gap:5px;padding:5px}
+    .ticket{border:1.5px solid #aa0000;border-radius:3px;break-inside:avoid;page-break-inside:avoid;background:#fff;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+    .hdr{background:linear-gradient(180deg,#dd1111,#aa0000);padding:4px 5px;text-align:center}
+    .tit{font-weight:900;color:#fff;font-size:1.1em;line-height:1.2;text-transform:uppercase;letter-spacing:.03em;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+    .sub2{color:rgba(255,255,255,.82);font-size:.62em;margin-top:2px;letter-spacing:.14em;text-transform:uppercase}
+    .bp{padding:3px 4px 5px}
+    .dat{text-align:center;font-weight:700;color:#333;font-size:.88em;margin-bottom:3px;padding-bottom:2px;border-bottom:1.5px solid #e00}
+    .stn-name{text-align:center;font-weight:900;color:#cc0000;font-size:.95em;margin:2px 0 1px;text-transform:uppercase;letter-spacing:.03em}
+    table{width:100%;border-collapse:collapse;margin-top:1px}
+    td,th{border:1px solid #e0e0e0}
+    .lbl{font-weight:900;padding:1px 2px;white-space:nowrap;vertical-align:middle;text-align:center;font-size:.85em;width:18px}
+    .nums{padding:1px 3px;vertical-align:middle;text-align:center;font-weight:700;color:#222;white-space:normal;line-height:1.4}
+    @page{margin:3mm}
+    @media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact;background:#fff}}
   </style></head><body>
     <div class="container">${tickets.join("")}</div>
   </body></html>`;

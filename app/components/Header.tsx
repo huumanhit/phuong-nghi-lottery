@@ -28,6 +28,7 @@ const MENU_SECTIONS = [
       { label: "Kết Quả Xổ Số Miền Bắc",    href: "/?region=mb"   },
       { label: "Dò Vé Số Online",            href: "/kiem-tra"     },
       { label: "Đổi Vé Trúng Thưởng",        href: "/doi-ve-trung" },
+      { label: "Giới Thiệu Cửa Hàng",        href: "/gioi-thieu"   },
     ],
   },
   {
@@ -41,11 +42,12 @@ const MENU_SECTIONS = [
 ];
 
 const NAV_TABS = [
-  { label: "XSMN",  href: "/?region=mn" },
-  { label: "XSMT",  href: "/?region=mt" },
-  { label: "XSMB",  href: "/?region=mb" },
-  { label: "Dò Vé", href: "/kiem-tra"  },
-  { label: "In Vé", href: "/in-ve-do" },
+  { label: "XSMN",       href: "/?region=mn"  },
+  { label: "XSMT",       href: "/?region=mt"  },
+  { label: "XSMB",       href: "/?region=mb"  },
+  { label: "Dò Vé",      href: "/kiem-tra"    },
+  { label: "In Vé",      href: "/in-ve-do"    },
+  { label: "Giới Thiệu", href: "/gioi-thieu"  },
 ];
 
 // ---------------------------------------------------------------------------

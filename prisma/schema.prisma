@@ -70,3 +70,17 @@ model LotterySchedule {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model StoreInfo {
+  id          String   @id @default("main")
+  storeName   String   @default("")
+  tagline     String   @default("")
+  description String   @default("")
+  address1    String   @default("")
+  address2    String   @default("")
+  phone       String   @default("")
+  email       String   @default("")
+  openHours   String   @default("")
+  mapEmbedUrl String   @default("")
+  updatedAt   DateTime @updatedAt
+}
