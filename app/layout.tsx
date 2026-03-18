@@ -27,12 +27,38 @@ const playfair = Playfair_Display({
   display: "swap",
 });
 
+const siteUrl = "https://xosophuongnghi.com.vn";
+const siteTitle = "PHƯƠNG NGHI - Kết Quả Xổ Số Trực Tiếp";
+const siteDesc = "Kết quả xổ số miền Bắc, miền Trung, miền Nam hôm nay nhanh nhất - XSMB XSMT XSMN. Đại lý vé số Phương Nghi.";
+
 export const metadata: Metadata = {
-  title: "PHƯƠNG NGHI - Kết Quả Xổ Số Trực Tiếp",
-  description: "Kết quả xổ số miền Bắc, miền Trung, miền Nam hôm nay - XSMB XSMT XSMN",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: siteTitle,
+    template: "%s | Phương Nghi Xổ Số",
+  },
+  description: siteDesc,
   icons: {
-    icon: "/logo.png",
-    apple: "/logo.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/logo.jpg",    sizes: "32x32", type: "image/jpeg" },
+    ],
+    apple: { url: "/logo.jpg", sizes: "180x180" },
+  },
+  openGraph: {
+    type: "website",
+    url: siteUrl,
+    title: siteTitle,
+    description: siteDesc,
+    siteName: "Phương Nghi Xổ Số",
+    images: [{ url: "/logo.jpg", width: 617, height: 664, alt: siteTitle }],
+    locale: "vi_VN",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteTitle,
+    description: siteDesc,
+    images: ["/logo.jpg"],
   },
 };
 
