@@ -274,6 +274,7 @@ export default function MultiStationTable({
               drawOrder
                 .filter((prizeKey) =>
                   prizeKey !== "eighth" ||
+                  isLivePolling ||
                   stations.some((s) => (s.results.eighth ?? []).length > 0)
                 )
                 .flatMap((prizeKey, prizeIdx) => {

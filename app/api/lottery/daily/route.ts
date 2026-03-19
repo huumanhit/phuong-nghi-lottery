@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { fetchDailyRegionResult } from "@/services/lotteryService";
 import type { Region } from "@/app/lib/lotteryData";
 
+// Never cache this route — results change per-prize during live draw
+export const dynamic = "force-dynamic";
+
 const VALID_REGIONS: Region[] = ["mb", "mt", "mn"];
 
 /**

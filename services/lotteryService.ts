@@ -50,6 +50,9 @@ const RSS_ENDPOINTS: Record<Region, string> = {
 
 const CACHE_TTL_SECONDS = 300;
 
+// live.xoso.com.vn group IDs: 1=MB, 2=MT, 3=MN
+const LIVE_GROUP: Record<Region, number> = { mb: 1, mt: 2, mn: 3 };
+
 // ---------------------------------------------------------------------------
 // Prize label → result key mappings (supports multiple Vietnamese variants)
 // ---------------------------------------------------------------------------
@@ -726,6 +729,84 @@ function parsePlainTextMultiStation(
 }
 
 // ---------------------------------------------------------------------------
+// Live API (live.xoso.com.vn) — real-time per-prize results during draw
+// ---------------------------------------------------------------------------
+
+interface LivePrize { Prize: string; Range: string; }
+interface LiveStation {
+  LotteryName: string;
+  CrDateTime: string;
+  LotPrizes: LivePrize[];
+}
+
+function parseLivePrizeKey(name: string): PrizeKey | null {
+  const n = name.trim();
+  if (/^G\.?8$/i.test(n)) return "eighth";
+  if (/^G\.?7$/i.test(n)) return "seventh";
+  if (/^G\.?6$/i.test(n)) return "sixth";
+  if (/^G\.?5$/i.test(n)) return "fifth";
+  if (/^G\.?4$/i.test(n)) return "fourth";
+  if (/^G\.?3$/i.test(n)) return "third";
+  if (/^G\.?2$/i.test(n)) return "second";
+  if (/^G\.?1$/i.test(n)) return "first";
+  if (/^(DB\d*|ĐB)$/i.test(n)) return "special";
+  return null;
+}
+
+function parseLiveRange(range: string): string[] {
+  if (!range?.trim()) return [];
+  return range.split(/\s*-\s*/).map((s) => s.trim()).filter(Boolean);
+}
+
+function parseLiveStation(s: LiveStation): LotteryResult {
+  const r: Partial<LotteryResult> = {};
+  for (const prize of s.LotPrizes ?? []) {
+    const key = parseLivePrizeKey(prize.Prize);
+    if (!key) continue;
+    const nums = parseLiveRange(prize.Range);
+    if (nums.length > 0) r[key] = nums;
+  }
+  return toFullResult(r);
+}
+
+function parseDateFromCrDateTime(dt: string): string {
+  const match = dt?.match(/(\d{2}\/\d{2}\/\d{4})/);
+  return match ? match[1] : getTodayVN();
+}
+
+async function fetchLiveRegionResult(region: Region): Promise<DailyRegionResult> {
+  const url = `https://live.xoso.com.vn/lotteryLive/${LIVE_GROUP[region]}`;
+  try {
+    const res = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        Accept: "application/json",
+      },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data: LiveStation[] = await res.json();
+    if (!Array.isArray(data) || data.length === 0) throw new Error("Empty response");
+
+    const date = parseDateFromCrDateTime(data[0].CrDateTime);
+    const stations: StationResult[] = data.map((s) => ({
+      stationId: stationSlug(s.LotteryName),
+      stationName: s.LotteryName,
+      results: parseLiveStation(s),
+    }));
+
+    return { date, region, stations, error: null };
+  } catch (err) {
+    return {
+      date: getTodayVN(),
+      region,
+      stations: [],
+      error: err instanceof Error ? err.message : "Lỗi live API",
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // fetchDailyRegionResult — multi-station aware
 // ---------------------------------------------------------------------------
 
@@ -742,6 +823,13 @@ export async function fetchDailyRegionResult(
   region: Region,
   dateIso?: string // "YYYY-MM-DD" — undefined = latest
 ): Promise<DailyRegionResult> {
+  // For today: use live API first (real-time per-prize results during draw)
+  if (!dateIso) {
+    const live = await fetchLiveRegionResult(region);
+    if (live.stations.length > 0) return live;
+    // Fall through to RSS if live API fails
+  }
+
   const targetDateVN = dateIso ? isoToVN(dateIso) : null;
 
   try {

@@ -190,7 +190,7 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
     setRegionError((prev) => { const n = { ...prev }; delete n[r]; return n; });
 
     try {
-      const res = await fetch(`/api/lottery/daily?region=${r}`);
+      const res = await fetch(`/api/lottery/daily?region=${r}`, { cache: "no-store" });
       if (!res.ok) throw new Error(`Lỗi máy chủ: HTTP ${res.status}`);
       const data = (await res.json()) as DailyRegionResult;
       if (data.error && data.stations.length === 0) throw new Error(data.error);
@@ -216,7 +216,7 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
   /** Silent fetch — no loading spinner, used for live polling */
   const silentFetchRegion = useCallback(async (r: Region) => {
     try {
-      const res = await fetch(`/api/lottery/daily?region=${r}`);
+      const res = await fetch(`/api/lottery/daily?region=${r}`, { cache: "no-store" });
       if (!res.ok) return;
       const data = (await res.json()) as DailyRegionResult;
       if (data.error && data.stations.length === 0) return;
@@ -271,7 +271,7 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
     setDateError(null);
     setDateStations(null);
     try {
-      const res = await fetch(`/api/lottery/daily?region=${r}&date=${dateIso}`);
+      const res = await fetch(`/api/lottery/daily?region=${r}&date=${dateIso}`, { cache: "no-store" });
       if (!res.ok) throw new Error(`Lỗi máy chủ: HTTP ${res.status}`);
       const data = (await res.json()) as DailyRegionResult;
       if (data.error && data.stations.length === 0) throw new Error(data.error);
