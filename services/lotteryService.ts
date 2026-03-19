@@ -50,8 +50,8 @@ const RSS_ENDPOINTS: Record<Region, string> = {
 
 const CACHE_TTL_SECONDS = 300;
 
-// live.xoso.com.vn group IDs: 1=MB, 2=MT, 3=MN
-const LIVE_GROUP: Record<Region, number> = { mb: 1, mt: 2, mn: 3 };
+// live.xoso.com.vn group IDs: 1=MB, 2=MN, 3=MT  (verified from API response)
+const LIVE_GROUP: Record<Region, number> = { mb: 1, mt: 3, mn: 2 };
 
 // ---------------------------------------------------------------------------
 // Prize label → result key mappings (supports multiple Vietnamese variants)
@@ -755,7 +755,8 @@ function parseLivePrizeKey(name: string): PrizeKey | null {
 
 function parseLiveRange(range: string): string[] {
   if (!range?.trim()) return [];
-  return range.split(/\s*-\s*/).map((s) => s.trim()).filter(Boolean);
+  // "..." is a placeholder used by the API when result not yet available
+  return range.split(/\s*-\s*/).map((s) => s.trim()).filter((s) => s && /\d/.test(s));
 }
 
 function parseLiveStation(s: LiveStation): LotteryResult {
@@ -826,8 +827,12 @@ export async function fetchDailyRegionResult(
   // For today: use live API first (real-time per-prize results during draw)
   if (!dateIso) {
     const live = await fetchLiveRegionResult(region);
-    if (live.stations.length > 0) return live;
-    // Fall through to RSS if live API fails
+    // Only use live data if at least one prize has actual numbers (not all "...")
+    const hasAnyData = live.stations.some((s) =>
+      Object.values(s.results).some((arr) => arr.length > 0)
+    );
+    if (live.stations.length > 0 && hasAnyData) return live;
+    // Fall through to RSS if live API has no real data yet
   }
 
   const targetDateVN = dateIso ? isoToVN(dateIso) : null;
