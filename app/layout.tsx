@@ -43,10 +43,12 @@ export const metadata: Metadata = {
   description: siteDesc,
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "48x48" },
-      { url: "/logo.jpg",    sizes: "32x32", type: "image/jpeg" },
+      { url: "/logo.jpg", sizes: "32x32",  type: "image/jpeg" },
+      { url: "/logo.jpg", sizes: "48x48",  type: "image/jpeg" },
+      { url: "/logo.jpg", sizes: "192x192", type: "image/jpeg" },
     ],
-    apple: { url: "/logo.jpg", sizes: "180x180" },
+    apple: { url: "/logo.jpg", sizes: "180x180", type: "image/jpeg" },
+    shortcut: "/logo.jpg",
   },
   openGraph: {
     type: "website",
@@ -65,11 +67,36 @@ export const metadata: Metadata = {
   },
 };
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Đại Lý Vé Số Phương Nghi",
+  url: siteUrl,
+  logo: `${siteUrl}/logo.jpg`,
+  image: `${siteUrl}/logo.jpg`,
+  description: siteDesc,
+  telephone: "+84989007772",
+  address: {
+    "@type": "PostalAddress",
+    streetAddress: "25 Phan Văn Hớn, Bà Điểm",
+    addressLocality: "Hóc Môn",
+    addressRegion: "TP. HCM",
+    addressCountry: "VN",
+  },
+  sameAs: [siteUrl],
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="vi" className={`${oswald.variable} ${beVietnam.variable} ${playfair.variable}`}>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
       <body className="antialiased" style={{ fontFamily: "var(--font-be-vietnam), Arial, sans-serif" }}>
         <AuthProvider>
           <Suspense fallback={null}><PageTracker /></Suspense>
