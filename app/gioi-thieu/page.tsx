@@ -27,6 +27,8 @@ async function getStoreInfo() {
   }
 }
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Giới Thiệu - Phương Nghi Xổ Số",
   description: "Thông tin giới thiệu về Đại Lý Vé Số Phương Nghi",
