@@ -45,6 +45,7 @@ export default function GioiThieuAdminPage() {
           openHours: data.openHours ?? "",
           mapEmbedUrl: data.mapEmbedUrl ?? "",
         });
+        if (data.logoUrl) setLogoPreview(data.logoUrl);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -58,17 +59,22 @@ export default function GioiThieuAdminPage() {
     // Local preview
     setLogoPreview(URL.createObjectURL(file));
     setLogoUploading(true);
-    const fd = new FormData();
-    fd.append("logo", file);
-    const res = await fetch("/api/admin/upload-logo", { method: "POST", body: fd });
-    const data = await res.json();
-    if (res.ok) {
-      setLogoPreview(data.url);
-      setLogoSuccess(true);
-    } else {
-      setLogoError(data.error || "Upload thất bại");
+    try {
+      const fd = new FormData();
+      fd.append("logo", file);
+      const res = await fetch("/api/admin/upload-logo", { method: "POST", body: fd });
+      const data = await res.json();
+      if (res.ok) {
+        setLogoPreview(data.url);
+        setLogoSuccess(true);
+      } else {
+        setLogoError(data.error || "Upload thất bại");
+      }
+    } catch {
+      setLogoError("Lỗi kết nối, vui lòng thử lại");
+    } finally {
+      setLogoUploading(false);
     }
-    setLogoUploading(false);
   }
 
   function set(key: keyof FormData, value: string) {

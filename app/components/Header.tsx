@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 
 // ---------------------------------------------------------------------------
@@ -56,7 +56,15 @@ const NAV_TABS = [
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [logoUrl, setLogoUrl] = useState("/logo.png");
   const { data: session } = useSession();
+
+  useEffect(() => {
+    fetch("/api/store-info")
+      .then((r) => r.json())
+      .then((d) => { if (d.logoUrl) setLogoUrl(d.logoUrl); })
+      .catch(() => {});
+  }, []);
 
   return (
     <>
@@ -64,7 +72,7 @@ export default function Header() {
         {/* ---- Branding row ---- */}
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
-            <Image src="/logo.png" alt="Phương Nghi Logo" width={60} height={60} className="rounded-full" priority />
+            <Image src={logoUrl} alt="Phương Nghi Logo" width={60} height={60} className="rounded-full" priority unoptimized />
             <div>
               <div className="font-playfair font-black leading-tight"
                    style={{ fontSize: "clamp(22px, 5vw, 34px)", letterSpacing: "0.02em", animation: "headerGlow 1.8s ease-in-out infinite", color: "#ffffff" }}>

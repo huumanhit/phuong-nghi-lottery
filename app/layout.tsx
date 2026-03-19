@@ -33,6 +33,9 @@ const siteDesc = "Kết quả xổ số miền Bắc, miền Trung, miền Nam h
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
+  verification: {
+    google: "JNCzQ7xQOBDo5Xg0GNusqSkRyTbLHLHhXdij8I3Hx5I",
+  },
   title: {
     default: siteTitle,
     template: "%s | Phương Nghi Xổ Số",

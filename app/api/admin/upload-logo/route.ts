@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifyAdminToken, COOKIE_NAME } from "@/lib/adminAuth";
-import { writeFile } from "fs/promises";
-import path from "path";
+import { put } from "@vercel/blob";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -37,17 +37,20 @@ export async function POST(req: NextRequest) {
     : file.type === "image/webp" ? "webp"
     : "jpg";
 
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-
-  // Always save as logo.png (overwrite existing)
-  const filePath = path.join(process.cwd(), "public", `logo.${ext}`);
-
-  // If extension changed, also write logo.png for backward compat
-  await writeFile(filePath, buffer);
-  if (ext !== "png") {
-    await writeFile(path.join(process.cwd(), "public", "logo.png"), buffer);
+  try {
+    const blob = await put(`logo.${ext}`, file, {
+      access: "public",
+      allowOverwrite: true,
+    });
+    await prisma.storeInfo.upsert({
+      where: { id: "main" },
+      update: { logoUrl: blob.url },
+      create: { id: "main", logoUrl: blob.url },
+    });
+    return NextResponse.json({ url: blob.url });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[upload-logo] blob upload error:", msg);
+    return NextResponse.json({ error: `Upload thất bại: ${msg}` }, { status: 500 });
   }
-
-  return NextResponse.json({ url: `/logo.${ext}?t=${Date.now()}` });
 }

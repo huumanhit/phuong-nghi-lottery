@@ -94,5 +94,6 @@ model StoreInfo {
   email       String   @default("")
   openHours   String   @default("")
   mapEmbedUrl String   @default("")
+  logoUrl     String   @default("")
   updatedAt   DateTime @updatedAt
 }

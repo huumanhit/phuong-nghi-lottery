@@ -37,11 +37,11 @@ export const STATION_SCHEDULE: Record<Region, Record<number, string[]>> = {
   },
   mn: {
     0: ["Tiền Giang", "Kiên Giang", "Đà Lạt"],
-    1: ["Long An", "Đồng Tháp", "Cần Thơ"],
+    1: ["TP. HCM", "Đồng Tháp", "Cà Mau"],
     2: ["Bến Tre", "Vũng Tàu", "Bạc Liêu"],
     3: ["Đồng Nai", "Cần Thơ", "Sóc Trăng"],
-    4: ["An Giang", "Bình Thuận", "Bình Dương"],
-    5: ["Vĩnh Long", "Bình Dương", "Trà Vinh"],
+    4: ["Tây Ninh", "An Giang", "Bình Thuận"],
+    5: ["Bình Dương", "Vĩnh Long", "Trà Vinh"],
     6: ["TP. HCM", "Long An", "Bình Phước", "Hậu Giang"],
   },
 };
