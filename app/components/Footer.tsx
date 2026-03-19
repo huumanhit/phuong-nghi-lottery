@@ -1,4 +1,6 @@
+"use client";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 
 const NAV_COLS = [
   {
@@ -40,7 +42,52 @@ const NAV_COLS = [
   },
 ];
 
+const DEFAULTS = {
+  storeName: "Đại Lý Vé Số Phương Nghi",
+  tagline: "Hệ thống phân phối sỉ vé số kiến thiết Miền Nam",
+  address1: "25 Phan Văn Hớn, Bà Điểm, Hóc Môn, TP. HCM",
+  address2: "30 Phan Văn Đối, Bà Điểm, Hóc Môn, TP. HCM",
+  phone: "0989 007 772",
+  email: "xosophuongnghi@gmail.com",
+};
+
+const FOOTER_CACHE_KEY = "site_store_info";
+
+type StoreInfo = typeof DEFAULTS;
+
+function getCached(): StoreInfo {
+  if (typeof window === "undefined") return DEFAULTS;
+  try {
+    const raw = localStorage.getItem(FOOTER_CACHE_KEY);
+    return raw ? { ...DEFAULTS, ...JSON.parse(raw) } : DEFAULTS;
+  } catch {
+    return DEFAULTS;
+  }
+}
+
 export default function Footer() {
+  const [info, setInfo] = useState<StoreInfo>(getCached);
+
+  useEffect(() => {
+    fetch("/api/store-info")
+      .then((r) => r.json())
+      .then((d) => {
+        const updated: StoreInfo = {
+          storeName: d.storeName || DEFAULTS.storeName,
+          tagline:   d.tagline   || DEFAULTS.tagline,
+          address1:  d.address1  || DEFAULTS.address1,
+          address2:  d.address2  || DEFAULTS.address2,
+          phone:     d.phone     || DEFAULTS.phone,
+          email:     d.email     || DEFAULTS.email,
+        };
+        setInfo(updated);
+        localStorage.setItem(FOOTER_CACHE_KEY, JSON.stringify(updated));
+      })
+      .catch(() => {});
+  }, []);
+
+  const telClean = info.phone.replace(/\s/g, "");
+
   return (
     <footer
       className="bg-red-800 text-white mt-8"
@@ -52,20 +99,24 @@ export default function Footer() {
         {/* Left: address block */}
         <div>
           <h3 className="text-yellow-300 font-extrabold text-sm uppercase tracking-wide mb-3">
-            Đại Lý Vé Số Phương Nghi
+            {info.storeName}
           </h3>
           <p className="text-red-200 text-xs mb-2 font-semibold uppercase tracking-wide">
-            Hệ thống phân phối sỉ vé số kiến thiết Miền Nam
+            {info.tagline}
           </p>
           <ul className="space-y-1.5 text-sm">
-            <li className="flex items-start gap-2">
-              <span className="text-yellow-300 mt-0.5 flex-shrink-0">📍</span>
-              <span>25 Phan Văn Hớn, Bà Điểm, Hóc Môn, TP. HCM</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-yellow-300 mt-0.5 flex-shrink-0">📍</span>
-              <span>30 Phan Văn Đối, Bà Điểm, Hóc Môn, TP. HCM</span>
-            </li>
+            {info.address1 && (
+              <li className="flex items-start gap-2">
+                <span className="text-yellow-300 mt-0.5 flex-shrink-0">📍</span>
+                <span>{info.address1}</span>
+              </li>
+            )}
+            {info.address2 && (
+              <li className="flex items-start gap-2">
+                <span className="text-yellow-300 mt-0.5 flex-shrink-0">📍</span>
+                <span>{info.address2}</span>
+              </li>
+            )}
           </ul>
         </div>
 
@@ -75,11 +126,11 @@ export default function Footer() {
             🎰 Đổi Vé Trúng
           </p>
           <a
-            href="tel:0989007772"
+            href={`tel:${telClean}`}
             className="text-yellow-300 font-extrabold leading-tight hover:text-yellow-200 transition-colors"
             style={{ fontSize: "32px", letterSpacing: "0.08em" }}
           >
-            0989 007 772
+            {info.phone}
           </a>
           <p className="text-white font-semibold text-sm mt-1 tracking-wide">
             Gặp Mr.Quân
@@ -113,14 +164,14 @@ export default function Footer() {
       {/* ── Bottom bar ── */}
       <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-2">
         <p className="text-red-300 text-xs text-center sm:text-left">
-          © {new Date().getFullYear()} Phương Nghi — Kết Quả Xổ Số Trực Tiếp
+          © {new Date().getFullYear()} {info.storeName} — Kết Quả Xổ Số Trực Tiếp
         </p>
         <div className="flex items-center gap-3">
           <a
-            href="mailto:phuongnghixoso@gmail.com"
+            href={`mailto:${info.email}`}
             className="text-red-300 hover:text-yellow-300 text-xs transition-colors flex items-center gap-1"
           >
-            ✉ Liên hệ: phuongnghixoso@gmail.com
+            ✉ Liên hệ: {info.email}
           </a>
         </div>
       </div>

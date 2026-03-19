@@ -223,7 +223,7 @@ export default function GioiThieuAdminPage() {
             type="email"
             value={form.email}
             onChange={(e) => set("email", e.target.value)}
-            placeholder="VD: phuongnghixoso@gmail.com"
+            placeholder="VD: xosophuongnghi@gmail.com"
             className={inputCls}
           />
         </Field>

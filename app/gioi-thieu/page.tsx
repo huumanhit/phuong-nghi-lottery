@@ -15,7 +15,7 @@ async function getStoreInfo() {
           address1: "25 Phan Văn Hớn, Bà Điểm, Hóc Môn, TP. HCM",
           address2: "30 Phan Văn Đối, Bà Điểm, Hóc Môn, TP. HCM",
           phone: "0989 007 772",
-          email: "phuongnghixoso@gmail.com",
+          email: "xosophuongnghi@gmail.com",
           openHours: "",
           mapEmbedUrl: "",
         },
