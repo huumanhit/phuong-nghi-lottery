@@ -1,6 +1,6 @@
 "use client";
 import { Suspense, useCallback } from "react";
-import Header from "./components/Header";
+import Header from "@/app/components/Header";
 import LotteryPageWrapper from "./components/LotteryPageWrapper";
 import Sidebar from "./components/Sidebar";
 import LotteryCalendar from "./components/LotteryCalendar";

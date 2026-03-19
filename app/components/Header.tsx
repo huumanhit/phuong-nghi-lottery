@@ -54,17 +54,32 @@ const NAV_TABS = [
 // Component
 // ---------------------------------------------------------------------------
 
-export default function Header() {
+const LOGO_CACHE_KEY = "site_logo_url";
+
+export default function Header({ logoUrl: initialLogoUrl }: { logoUrl?: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [logoUrl, setLogoUrl] = useState("/logo.png");
+  const [logoUrl, setLogoUrl] = useState(() => {
+    if (initialLogoUrl) return initialLogoUrl;
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(LOGO_CACHE_KEY) || "/logo.png";
+    }
+    return "/logo.png";
+  });
   const { data: session } = useSession();
 
   useEffect(() => {
-    fetch("/api/store-info")
-      .then((r) => r.json())
-      .then((d) => { if (d.logoUrl) setLogoUrl(d.logoUrl); })
-      .catch(() => {});
-  }, []);
+    if (!initialLogoUrl) {
+      fetch("/api/store-info")
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.logoUrl) {
+            setLogoUrl(d.logoUrl);
+            localStorage.setItem(LOGO_CACHE_KEY, d.logoUrl);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [initialLogoUrl]);
 
   return (
     <>
@@ -72,7 +87,7 @@ export default function Header() {
         {/* ---- Branding row ---- */}
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
-            <Image src={logoUrl} alt="Phương Nghi Logo" width={60} height={60} className="rounded-full" priority unoptimized />
+            {logoUrl && <Image src={logoUrl} alt="Phương Nghi Logo" width={60} height={60} className="rounded-full" priority unoptimized />}
             <div>
               <div className="font-playfair font-black leading-tight"
                    style={{ fontSize: "clamp(22px, 5vw, 34px)", letterSpacing: "0.02em", animation: "headerGlow 1.8s ease-in-out infinite", color: "#ffffff" }}>

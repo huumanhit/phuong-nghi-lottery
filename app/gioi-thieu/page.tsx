@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import Header from "@/app/components/Header";
+import HeaderWrapper from "@/app/components/HeaderWrapper";
 import Footer from "@/app/components/Footer";
 
 async function getStoreInfo() {
@@ -37,7 +37,7 @@ export default async function GioiThieuPage() {
 
   return (
     <>
-      <Header />
+      <HeaderWrapper />
       <main className="min-h-screen bg-gray-50">
         {/* Hero banner */}
         <div className="relative bg-red-700 text-white py-14 px-4 overflow-hidden">

@@ -1,4 +1,4 @@
-import Header from "../components/Header";
+import HeaderWrapper from "@/app/components/HeaderWrapper";
 import Link from "next/link";
 
 export const metadata = {
@@ -35,7 +35,7 @@ const STEPS = [
 export default function DoiVeTrungPage() {
   return (
     <main className="min-h-screen bg-gray-50">
-      <Header />
+      <HeaderWrapper />
 
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
 

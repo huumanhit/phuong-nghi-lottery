@@ -1,4 +1,4 @@
-import Header from "@/app/components/Header";
+import HeaderWrapper from "@/app/components/HeaderWrapper";
 import VietlottPage from "@/app/components/VietlottPage";
 import type { Metadata } from "next";
 
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function Power655Page() {
   return (
     <>
-      <Header />
+      <HeaderWrapper />
       <main className="bg-gray-50 min-h-screen">
         <VietlottPage game="power-655" />
       </main>

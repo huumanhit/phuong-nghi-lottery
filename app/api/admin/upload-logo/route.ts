@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     : "jpg";
 
   try {
-    const blob = await put(`logo.${ext}`, file, {
+    const blob = await put(`logo-${Date.now()}.${ext}`, file, {
       access: "public",
       allowOverwrite: true,
     });
