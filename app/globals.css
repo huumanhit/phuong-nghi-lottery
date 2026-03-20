@@ -3,23 +3,84 @@
 @tailwind utilities;
 
 :root {
-  --background: #f9fafb;
+  --background: #fdf8f3;
   --foreground: #111827;
+  --gold: #d4a017;
+  --gold-light: #FFD700;
 }
 
 body {
   color: var(--foreground);
-  background: var(--background);
+  background-color: #fdf8f3;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(180,0,0,0.055) 1px, transparent 0);
+  background-size: 26px 26px;
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Lottery number tables — bold condensed numbers */
+/* Lottery number tables */
 table td, table th {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* ─── Custom scrollbar ─────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f3e8e8; }
+::-webkit-scrollbar-thumb { background: #c0392b; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #922b21; }
+
+/* ─── Ticker marquee ───────────────────────────────── */
+@keyframes tickerScroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.ticker-track {
+  display: inline-flex;
+  animation: tickerScroll 32s linear infinite;
+  white-space: nowrap;
+}
+.ticker-track:hover { animation-play-state: paused; }
+
+/* ─── Gold shimmer text ────────────────────────────── */
+@keyframes goldShimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.gold-shimmer {
+  background: linear-gradient(90deg, #b8860b 0%, #FFD700 40%, #ffe566 50%, #FFD700 60%, #b8860b 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: goldShimmer 2.8s linear infinite;
+}
+
+/* ─── VIP card shadow ──────────────────────────────── */
+.vip-card {
+  box-shadow: 0 4px 24px rgba(160,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
+  border: 1px solid rgba(220,38,38,0.12);
+}
+
+/* ─── Pulse glow button ────────────────────────────── */
+@keyframes btnPulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.5); }
+  60%       { box-shadow: 0 0 0 10px rgba(220,38,38,0); }
+}
+.btn-pulse { animation: btnPulseGlow 2s ease-in-out infinite; }
+
+/* ─── Section header gold bar ──────────────────────── */
+.section-header-gold {
+  background: linear-gradient(135deg, #8b0000 0%, #c0392b 50%, #8b0000 100%);
+  border-bottom: 2px solid #d4a017;
+}
+
+/* ─── Floating sparkle ─────────────────────────────── */
+@keyframes sparkleFloat {
+  0%, 100% { transform: translateY(0px) scale(1); opacity: 0.7; }
+  50%       { transform: translateY(-6px) scale(1.15); opacity: 1; }
+}
+.sparkle { animation: sparkleFloat 2.4s ease-in-out infinite; }
+
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+  .text-balance { text-wrap: balance; }
 }

@@ -695,9 +695,10 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
             </button>
           );
         })}
-        <div className="ml-auto flex-shrink-0">
-          <CountdownTimer isLive={isLive} />
-        </div>
+      </div>
+      {/* ---- Countdown timer — full width row on mobile ---- */}
+      <div className="mb-3">
+        <CountdownTimer isLive={isLive} drawTime={DRAW_TIMES[region]} />
       </div>
 
       {/* ---- Waiting banner: today's results not yet available ---- */}

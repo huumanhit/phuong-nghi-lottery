@@ -8,6 +8,9 @@ const nextConfig = {
       },
     ],
   },
+  experimental: {
+    swcTraceProfiling: false,
+  },
 };
 
 export default nextConfig;

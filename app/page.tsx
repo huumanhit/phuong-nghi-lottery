@@ -7,15 +7,46 @@ import LotteryCalendar from "./components/LotteryCalendar";
 import Footer from "./components/Footer";
 import PromoBanner from "./components/PromoBanner";
 
+const TICKER_ITEMS = [
+  "🔴 TRỰC TIẾP XỔ SỐ MIỀN BẮC — Hà Nội",
+  "🌴 TRỰC TIẾP XỔ SỐ MIỀN NAM — Bình Dương · Vĩnh Long · Trà Vinh",
+  "🌊 TRỰC TIẾP XỔ SỐ MIỀN TRUNG — Gia Lai · Ninh Thuận",
+  "🏆 ĐỔI SỐ TRÚNG TẬN NƠI — Hotline: 0989 007 772",
+  "⭐ UY TÍN & BẢO MẬT — Đại Lý Phương Nghi",
+  "🎰 VIETLOTT MEGA 6/45 · POWER 6/55 · MAX4D",
+  "✨ KẾT QUẢ NHANH NHẤT — Cập Nhật Ngay Khi Xổ",
+];
+
 export default function Home() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleCalSelect = useCallback((_iso: string) => {}, []);
 
+  const tickerText = TICKER_ITEMS.join("   ·   ");
+
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen" style={{ background: "var(--background)" }}>
       <Header />
 
-      {/* ── Promo banner — full width below header ── */}
+      {/* ── Live ticker strip ── */}
+      <div className="bg-gradient-to-r from-red-900 via-red-700 to-red-900 border-b-2 border-yellow-500/60 overflow-hidden">
+        <div className="flex items-center">
+          {/* Badge */}
+          <div className="shrink-0 flex items-center gap-1.5 bg-yellow-400 text-red-900 px-3 py-1.5 font-black text-xs uppercase tracking-wider z-10 shadow-md">
+            <span className="sparkle inline-block">⚡</span>
+            <span>LIVE</span>
+          </div>
+          {/* Scrolling text */}
+          <div className="overflow-hidden flex-1">
+            <div className="ticker-track py-1.5">
+              <span className="text-white text-xs font-semibold px-8">{tickerText}</span>
+              {/* duplicate for seamless loop */}
+              <span className="text-white text-xs font-semibold px-8">{tickerText}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Promo banner ── */}
       <div className="max-w-7xl mx-auto px-4 pt-4">
         <PromoBanner />
       </div>
@@ -46,7 +77,8 @@ export default function Home() {
 
         </div>
       </div>
-    <Footer />
+
+      <Footer />
     </main>
   );
 }
