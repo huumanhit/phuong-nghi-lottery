@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 
 // ---------------------------------------------------------------------------
@@ -76,23 +76,9 @@ export default function Header({
   headerSettingsRaw?: string;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [logoUrl, setLogoUrl] = useState(initialLogoUrl || "/logo.png");
-  const [header, setHeader] = useState(() =>
-    parseHeaderSettings(headerSettingsRaw ?? "")
-  );
+  const logoUrl = initialLogoUrl || "/logo.png";
+  const header = parseHeaderSettings(headerSettingsRaw ?? "");
   const { data: session } = useSession();
-
-  // Fetch from API khi không có dữ liệu từ server (page.tsx dùng Header trực tiếp)
-  useEffect(() => {
-    if (headerSettingsRaw !== undefined) return; // đã có từ HeaderWrapper, bỏ qua
-    fetch("/api/store-info")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.logoUrl) setLogoUrl(d.logoUrl);
-        if (d.headerSettings) setHeader(parseHeaderSettings(d.headerSettings));
-      })
-      .catch(() => {});
-  }, [headerSettingsRaw]);
 
   return (
     <>

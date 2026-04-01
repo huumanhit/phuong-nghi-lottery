@@ -2,7 +2,7 @@
 import { useState } from "react";
 
 interface Props {
-  onDateSelect: (dateIso: string) => void;
+  onDateSelect?: (dateIso: string) => void;
 }
 
 const MONTH_NAMES = [
@@ -112,7 +112,7 @@ export default function LotteryCalendar({ onDateSelect }: Props) {
               <button
                 key={day}
                 disabled={isFuture}
-                onClick={() => onDateSelect(iso)}
+                onClick={() => onDateSelect?.(iso)}
                 className={`
                   text-xs font-semibold py-1.5 rounded transition-all text-center
                   ${isFuture ? "text-gray-200 cursor-not-allowed" : "hover:bg-red-100 active:scale-95 cursor-pointer"}
