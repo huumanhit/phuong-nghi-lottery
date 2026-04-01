@@ -54,32 +54,45 @@ const NAV_TABS = [
 // Component
 // ---------------------------------------------------------------------------
 
-const LOGO_CACHE_KEY = "site_logo_url";
+const DEFAULT_HEADER = {
+  titleText:    "XỔ SỐ PHƯƠNG NGHI",
+  subtitleText: "Nhanh Nhất & Chính Xác Nhất",
+  fontFamily:   "playfair",
+  titleColor:   "#FFD700",
+  subtitleColor:"#ffffff",
+  titleSize:    "clamp(26px, 5.5vw, 42px)",
+};
 
-export default function Header({ logoUrl: initialLogoUrl }: { logoUrl?: string }) {
+function parseHeaderSettings(raw: string) {
+  try { return { ...DEFAULT_HEADER, ...JSON.parse(raw) }; }
+  catch { return { ...DEFAULT_HEADER }; }
+}
+
+export default function Header({
+  logoUrl: initialLogoUrl,
+  headerSettingsRaw,
+}: {
+  logoUrl?: string;
+  headerSettingsRaw?: string;
+}) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [logoUrl, setLogoUrl] = useState(() => {
-    if (initialLogoUrl) return initialLogoUrl;
-    if (typeof window !== "undefined") {
-      return localStorage.getItem(LOGO_CACHE_KEY) || "/logo.png";
-    }
-    return "/logo.png";
-  });
+  const [logoUrl, setLogoUrl] = useState(initialLogoUrl || "/logo.png");
+  const [header, setHeader] = useState(() =>
+    parseHeaderSettings(headerSettingsRaw ?? "")
+  );
   const { data: session } = useSession();
 
+  // Fetch from API khi không có dữ liệu từ server (page.tsx dùng Header trực tiếp)
   useEffect(() => {
-    if (!initialLogoUrl) {
-      fetch("/api/store-info")
-        .then((r) => r.json())
-        .then((d) => {
-          if (d.logoUrl) {
-            setLogoUrl(d.logoUrl);
-            localStorage.setItem(LOGO_CACHE_KEY, d.logoUrl);
-          }
-        })
-        .catch(() => {});
-    }
-  }, [initialLogoUrl]);
+    if (headerSettingsRaw !== undefined) return; // đã có từ HeaderWrapper, bỏ qua
+    fetch("/api/store-info")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.logoUrl) setLogoUrl(d.logoUrl);
+        if (d.headerSettings) setHeader(parseHeaderSettings(d.headerSettings));
+      })
+      .catch(() => {});
+  }, [headerSettingsRaw]);
 
   return (
     <>
@@ -89,26 +102,41 @@ export default function Header({ logoUrl: initialLogoUrl }: { logoUrl?: string }
           <Link href="/" className="flex items-center gap-3">
             {logoUrl && <Image src={logoUrl} alt="Phương Nghi Logo" width={60} height={60} className="rounded-full" priority unoptimized />}
             <div>
-              <div className="font-playfair font-black leading-tight"
-                   style={{ fontSize: "clamp(22px, 5vw, 34px)", letterSpacing: "0.02em", animation: "headerGlow 1.8s ease-in-out infinite", color: "#ffffff" }}>
-                PHƯƠNG NGHI
+              <div
+                className={`${
+                  header.fontFamily === "oswald"  ? "font-oswald"   :
+                  header.fontFamily === "vietnam" ? "font-vietnam"  : "font-playfair"
+                } font-black leading-tight`}
+                style={{
+                  fontSize: header.titleSize,
+                  letterSpacing: "0.03em",
+                  animation: "headerGlow 2s ease-in-out infinite",
+                  color: header.titleColor,
+                  WebkitTextStroke: "0.5px #B8860B",
+                }}
+              >
+                {header.titleText}
               </div>
-              <div className="font-playfair font-bold italic"
-                   style={{ fontSize: "13px", letterSpacing: "0.06em", animation: "subBlink 1.8s ease-in-out infinite", color: "#fde047" }}>
-                Kết Quả Xổ Số Trực Tiếp
+              <div
+                className={`${
+                  header.fontFamily === "oswald"  ? "font-oswald"   :
+                  header.fontFamily === "vietnam" ? "font-vietnam"  : "font-playfair"
+                } italic`}
+                style={{ fontSize: "15px", fontWeight: 600, letterSpacing: "0.05em", color: header.subtitleColor }}
+              >
+                {header.subtitleText}
               </div>
             </div>
           </Link>
 
           <style>{`
             @keyframes headerGlow {
-              0%, 100% { color: #ffffff; text-shadow: 0 0 8px rgba(255,215,0,0.4); }
-              50%       { color: #FFD700; text-shadow: 0 0 18px rgba(255,215,0,1), 0 0 32px rgba(255,150,0,0.6); }
+              0%, 100% { color: var(--header-title-color, #FFD700); text-shadow: 0 2px 4px rgba(0,0,0,0.5), 0 0 10px rgba(255,215,0,0.5); }
+              50%       { filter: brightness(1.15); text-shadow: 0 2px 4px rgba(0,0,0,0.4), 0 0 22px rgba(255,215,0,1), 0 0 40px rgba(255,180,0,0.7); }
             }
-            @keyframes subBlink {
-              0%, 100% { color: #fde047; opacity: 1; }
-              50%       { color: #ffffff; opacity: 0.85; }
-            }
+          `}</style>
+          <style>{`
+            :root { --header-title-color: ${header.titleColor}; }
           `}</style>
 
           <div className="flex items-center gap-2">

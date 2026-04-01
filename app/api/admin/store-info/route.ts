@@ -39,7 +39,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const body = await req.json();
-  const allowed = ["storeName", "tagline", "description", "address1", "address2", "phone", "email", "openHours", "mapEmbedUrl"];
+  const allowed = ["storeName", "tagline", "description", "address1", "address2", "phone", "email", "openHours", "mapEmbedUrl", "headerSettings"];
   const data: Record<string, string> = {};
   for (const key of allowed) {
     if (typeof body[key] === "string") data[key] = body[key];

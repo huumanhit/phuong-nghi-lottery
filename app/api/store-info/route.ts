@@ -18,8 +18,9 @@ export async function GET() {
         email: "xosophuongnghi@gmail.com",
         openHours: "",
         mapEmbedUrl: "",
+        headerSettings: "",
       },
     });
   }
-  return NextResponse.json(info);
+  return NextResponse.json({ logoUrl: info.logoUrl, headerSettings: info.headerSettings });
 }
