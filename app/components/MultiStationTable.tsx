@@ -79,13 +79,13 @@ function getMbNumClass(prizeKey: PrizeKey): string {
   switch (prizeKey) {
     case "special": return "text-red-700 font-extrabold";
     case "first":   return "text-red-600 font-extrabold";
-    case "second":  return "text-blue-700 font-bold";
-    case "third":   return "text-gray-800 font-bold";
-    case "fourth":  return "text-gray-800 font-bold";
-    case "fifth":   return "text-gray-800 font-bold";
-    case "sixth":   return "text-blue-600 font-bold";
+    case "second":  return "text-blue-700 font-extrabold";
+    case "third":   return "text-gray-800 font-extrabold";
+    case "fourth":  return "text-gray-800 font-extrabold";
+    case "fifth":   return "text-gray-800 font-extrabold";
+    case "sixth":   return "text-blue-600 font-extrabold";
     case "seventh": return "text-red-600 font-extrabold";
-    default:        return "text-gray-800 font-bold";
+    default:        return "text-gray-800 font-extrabold";
   }
 }
 
@@ -97,52 +97,59 @@ function getMnMtNumClass(prizeKey: PrizeKey, stationIdx: number): string {
         ? "text-red-600 font-extrabold"
         : "text-blue-600 font-extrabold";
     case "eighth":  return "text-red-600 font-extrabold";
-    case "seventh": return "text-blue-700 font-bold";
-    default:        return "text-gray-800 font-bold";
+    case "seventh": return "text-blue-700 font-extrabold";
+    default:        return "text-gray-800 font-extrabold";
   }
 }
 
-// ── Font size per prize — clamp() scales from mobile to desktop ───────────────
-const MB_FONT_SIZE: Partial<Record<PrizeKey, string>> = {
-  special: "clamp(28px, 7vw, 48px)",
-  first:   "clamp(22px, 5.5vw, 36px)",
-  second:  "clamp(18px, 4.5vw, 30px)",
-  third:   "clamp(15px, 3.5vw, 24px)",
-  fourth:  "clamp(14px, 3vw, 22px)",
-  fifth:   "clamp(14px, 3vw, 22px)",
-  sixth:   "clamp(14px, 3vw, 22px)",
-  seventh: "clamp(18px, 4vw, 28px)",
-};
+// ── Font size MB — đồng nhất tất cả giải giống MN ────────────────────────────
+// Bottleneck: G4 (4 số/hàng × 5 chữ số) → (290px - 3×9px_gap) / (4×5×0.6) ≈ 22px @ 375px
+// ĐB dùng size lớn hơn vì chỉ có 1 số/hàng
+const MB_FONT_SIZE_BASE    = "clamp(17px, 5.8vw, 26px)"; // ~22px @ 375px — tất cả giải
+const MB_FONT_SIZE_SPECIAL = "clamp(26px, 8.5vw, 38px)"; // ~32px @ 375px — ĐB (1 số/hàng)
 
-// Base font sizes for 3-station layout (px) — scales with station count
-const MNMT_BASE_PX: Partial<Record<PrizeKey, number>> = {
-  special: 26,
-  first:   21,
-  second:  21,
-  third:   15,
-  fourth:  14,
-  fifth:   16,
-  sixth:   16,
-  seventh: 26,
-  eighth:  40,
-};
+// Tất cả giải dùng cùng 1 size base (5 chữ số là nhiều nhất → giới hạn)
+// Col available @ 375px, 3 đài = (375-52)/3 - 8 ≈ 99px
+// Safe: 99 / (5 digits × 0.72em) ≈ 27.5px → 7.3vw @ 375px
+// Col = (375 - 52px label) / 3 đài - 2px padding ≈ 105px
+// 5 chữ số × font × 0.72em_ratio ≤ 105 → font ≤ 29px → 7.7vw @ 375px (safe: 6.5vw)
+const BASE_VW   = 6.5;
+const BASE_MIN  = 14;
+const BASE_MAX  = 28;
+const EIGHTH_VW  = 9.0;  // G8 (2 chữ số) lớn hơn 1 chút
+const EIGHTH_MIN = 18;
+const EIGHTH_MAX = 38;
 
 function getMnMtFontSize(key: PrizeKey, stationCount: number): string {
-  const base = MNMT_BASE_PX[key] ?? 14;
-  const scale = stationCount <= 2 ? 1.25 : stationCount <= 3 ? 1 : stationCount <= 4 ? 0.8 : 0.68;
-  return `${Math.round(base * scale)}px`;
+  const isEighth = key === "eighth";
+  const vw  = isEighth ? EIGHTH_VW  : BASE_VW;
+  const min = isEighth ? EIGHTH_MIN : BASE_MIN;
+  const max = isEighth ? EIGHTH_MAX : BASE_MAX;
+  // Không scale khi stationCount < 3 để giữ font đồng nhất với MN
+  const stationScale = stationCount >= 3 ? 3 / stationCount : 1;
+  // Giải đặc biệt có 6 chữ số (các giải khác 5 chữ số) → scale nhỏ lại để vừa cell
+  const digitScale = key === "special" ? 5 / 6 : 1;
+  const scaledVw  = (vw  * stationScale * digitScale).toFixed(1);
+  const scaledMax = Math.round(max * stationScale * digitScale);
+  return `clamp(${min}px, ${scaledVw}vw, ${scaledMax}px)`;
+}
+
+function getMnMtCellPadding(key: PrizeKey): string {
+  if (key === "eighth" || key === "special") return "py-2";
+  if (key === "seventh" || key === "first") return "py-1.5";
+  return "py-1";
 }
 
 // ── Gap between numbers in a row ──────────────────────────────────────────────
 const MB_GAP: Partial<Record<PrizeKey, string>> = {
-  special: "clamp(8px, 2vw, 16px)",
-  first:   "clamp(6px, 1.5vw, 12px)",
-  second:  "clamp(10px, 2.5vw, 20px)",
-  third:   "clamp(6px, 1.5vw, 12px)",
-  fourth:  "clamp(6px, 1.5vw, 12px)",
-  fifth:   "clamp(6px, 1.5vw, 12px)",
-  sixth:   "clamp(8px, 2vw, 16px)",
-  seventh: "clamp(8px, 2vw, 16px)",
+  special: "clamp(16px, 4vw, 28px)",
+  first:   "clamp(16px, 4vw, 28px)",
+  second:  "clamp(20px, 5vw, 32px)",
+  third:   "clamp(12px, 3vw, 20px)",
+  fourth:  "clamp(10px, 2.5vw, 16px)",
+  fifth:   "clamp(12px, 3vw, 20px)",
+  sixth:   "clamp(14px, 3.5vw, 22px)",
+  seventh: "clamp(14px, 3.5vw, 22px)",
 };
 
 // ── Label cell background ─────────────────────────────────────────────────────
@@ -180,15 +187,15 @@ export default function MultiStationTable({
   const labels    = isMb ? MB_LABELS : MNMT_LABELS;
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-red-200 shadow-md">
+    <div className="rounded-lg border border-red-200 shadow-md overflow-hidden">
       <table
         className="w-full text-center border-collapse bg-white"
-        style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+        style={{ fontFamily: "Arial, Helvetica, sans-serif", tableLayout: "fixed" }}
       >
         {/* ── Header ── */}
         <thead>
           <tr className="bg-red-700 text-white">
-            <th className="py-1.5 px-1 text-xs font-bold border-r border-red-500 whitespace-nowrap text-red-200 w-10">
+            <th className="py-1.5 px-1 text-xs font-bold border-r border-red-500 whitespace-nowrap text-red-200" style={{ width: "52px" }}>
               CN
             </th>
             {stations.map((s) => (
@@ -221,13 +228,13 @@ export default function MultiStationTable({
                   rows.push(Array.from({ length: cols }, (_, j) => numbers[i + j] ?? null));
                 }
 
-                const fontSize = MB_FONT_SIZE[prizeKey] ?? "14px";
-                const gap     = MB_GAP[prizeKey] ?? "12px";
+                const fontSize = prizeKey === "special" ? MB_FONT_SIZE_SPECIAL : MB_FONT_SIZE_BASE;
+                const gap     = MB_GAP[prizeKey] ?? "8px";
 
                 return (
                   <tr key={prizeKey} className={`border-b border-gray-200 ${rowBg}`}>
                     {/* Label */}
-                    <td className={`py-1.5 px-1 text-xs font-extrabold border-r border-red-200 align-middle whitespace-nowrap w-10 ${getLabelBg(prizeKey)}`}>
+                    <td className={`py-1.5 px-1 text-xs font-extrabold border-r border-red-200 align-middle text-center leading-tight ${getLabelBg(prizeKey)}`}>
                       {labels[prizeKey]}
                     </td>
 
@@ -312,18 +319,20 @@ export default function MultiStationTable({
                             const isNew = revealed.has(revealKey) && !isComplete;
                             const numClass  = getMnMtNumClass(prizeKey, sIdx);
                             const fontSize  = getMnMtFontSize(prizeKey, stations.length);
+                            const cellPad   = getMnMtCellPadding(prizeKey);
 
                             return (
                               <td
                                 key={s.stationId}
-                                className="py-0.5 px-1 border-r border-gray-100 last:border-r-0 text-center"
+                                className={`${cellPad} px-0.5 border-r border-gray-200 last:border-r-0 text-center`}
+                                style={{ overflow: "hidden", wordBreak: "keep-all" }}
                               >
                                 {num != null ? (
                                   <span
                                     className={`inline-block transition-all duration-500 ${numClass} ${
                                       isNew ? "scale-125 animate-bounce" : ""
                                     }`}
-                                    style={{ fontSize, lineHeight: "1.4" }}
+                                    style={{ fontSize, lineHeight: "1.4", letterSpacing: "-0.02em" }}
                                   >
                                     {num}
                                   </span>

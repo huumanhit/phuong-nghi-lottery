@@ -21,6 +21,23 @@ import {
 } from "@/app/lib/lotteryData";
 
 // ---------------------------------------------------------------------------
+// Station name normalization — RSS feed dùng tên khác với ALL_STATIONS
+// ---------------------------------------------------------------------------
+
+const STATION_NAME_ALIAS: Record<string, string> = {
+  "Hồ Chí Minh":         "TP. HCM",
+  "Ho Chi Minh":          "TP. HCM",
+  "TP.HCM":               "TP. HCM",
+  "TPHCM":                "TP. HCM",
+  "Thành phố Hồ Chí Minh": "TP. HCM",
+  "Lâm Đồng":             "Đà Lạt",
+};
+
+function normalizeStationName(name: string): string {
+  return STATION_NAME_ALIAS[name.trim()] ?? name.trim();
+}
+
+// ---------------------------------------------------------------------------
 // Public types
 // ---------------------------------------------------------------------------
 
@@ -49,6 +66,33 @@ const RSS_ENDPOINTS: Record<Region, string> = {
 };
 
 const CACHE_TTL_SECONDS = 300;
+
+// ---------------------------------------------------------------------------
+// In-memory server cache (per Node.js process — survives across requests)
+// ---------------------------------------------------------------------------
+
+interface CacheEntry<T> {
+  data: T;
+  expiresAt: number;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const serverCache = new Map<string, CacheEntry<any>>();
+
+function getFromCache<T>(key: string): T | null {
+  const entry = serverCache.get(key) as CacheEntry<T> | undefined;
+  if (entry && Date.now() < entry.expiresAt) return entry.data;
+  serverCache.delete(key);
+  return null;
+}
+
+function setInCache<T>(key: string, data: T, ttlMs: number): void {
+  serverCache.set(key, { data, expiresAt: Date.now() + ttlMs });
+}
+
+// TTL constants
+const TTL_LIVE_MS = 15_000;       // 15s for today's live data (matches warmer interval)
+const TTL_HISTORICAL_MS = 3_600_000; // 1h for historical (never changes)
 
 // live.xoso.com.vn group IDs: 1=MB, 2=MN, 3=MT  (verified from API response)
 const LIVE_GROUP: Record<Region, number> = { mb: 1, mt: 3, mn: 2 };
@@ -655,7 +699,14 @@ function parseMultiStationDescription(
 function parsePlainTextMultiStation(
   text: string
 ): Array<{ stationName: string; results: LotteryResult }> | null {
-  const lines = toLines(text);
+  // xskt.com.vn compact format is a single line — inject newlines before each prize label
+  // e.g. "[Cà Mau] ĐB: 829717 1: 29815 2: ... 7: 332 8: 45 [Đồng Tháp] ..."
+  // Insert \n before [Station] markers and before prize labels (ĐB, 1–8)
+  const expanded = text
+    .replace(/\[/g, "\n[")
+    .replace(/\b(đb|ĐB|[1-8])\s*:/gi, (m) => "\n" + m);
+
+  const lines = toLines(expanded);
 
   // Split into per-station sections at [Station Name] markers
   const sections: Array<{ name: string; lines: string[] }> = [];
@@ -721,7 +772,7 @@ function parsePlainTextMultiStation(
 
     // Only include stations that have a valid ĐB prize
     if ((result.special?.length ?? 0) > 0) {
-      stationResults.push({ stationName: name, results: toFullResult(result) });
+      stationResults.push({ stationName: normalizeStationName(name), results: toFullResult(result) });
     }
   }
 
@@ -820,7 +871,7 @@ async function fetchLiveRegionResult(region: Region): Promise<DailyRegionResult>
  *  3. If multiple items exist for that date (one per station) parse each separately.
  *  4. If only one aggregated item exists, spread it across the day's scheduled stations.
  */
-export async function fetchDailyRegionResult(
+async function _fetchDailyRegionResult(
   region: Region,
   dateIso?: string // "YYYY-MM-DD" — undefined = latest
 ): Promise<DailyRegionResult> {
@@ -874,8 +925,8 @@ export async function fetchDailyRegionResult(
           date: targetDate,
           region,
           stations: multiStation.map((s) => ({
-            stationId: stationSlug(s.stationName),
-            stationName: s.stationName,
+            stationId: stationSlug(normalizeStationName(s.stationName)),
+            stationName: normalizeStationName(s.stationName),
             results: normalizeMnMtResult(s.results),
           })),
           error: null,
@@ -889,7 +940,8 @@ export async function fetchDailyRegionResult(
     for (const item of itemsForDate) {
       const results = parseDescription(item.description);
       if (!results) continue;
-      const name = parseStationFromTitle(item.title, region) ?? "Tổng hợp";
+      const rawName = parseStationFromTitle(item.title, region) ?? "Tổng hợp";
+      const name = normalizeStationName(rawName);
       stationResults.push({ stationId: stationSlug(name), stationName: name, results });
     }
 
@@ -951,6 +1003,48 @@ export async function fetchDailyRegionResult(
       error: err instanceof Error ? err.message : "Lỗi không xác định",
     };
   }
+}
+
+export async function fetchDailyRegionResult(
+  region: Region,
+  dateIso?: string
+): Promise<DailyRegionResult> {
+  const cacheKey = `daily-${region}-${dateIso ?? "today"}`;
+  const cached = getFromCache<DailyRegionResult>(cacheKey);
+  if (cached) return cached;
+
+  const result = await _fetchDailyRegionResult(region, dateIso);
+
+  if (!result.error) {
+    const ttl = dateIso ? TTL_HISTORICAL_MS : TTL_LIVE_MS;
+    setInCache(cacheKey, result, ttl);
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Background cache warmer — keeps all 3 regions warm so NO user ever waits
+// Runs every 14s (slightly less than TTL_LIVE_MS=15s to prevent gaps)
+// ---------------------------------------------------------------------------
+
+const LIVE_REGIONS: Region[] = ["mb", "mt", "mn"];
+let warmerStarted = false;
+
+async function warmLiveCache() {
+  await Promise.allSettled(
+    LIVE_REGIONS.map((r) => _fetchDailyRegionResult(r).then((result) => {
+      if (!result.error) setInCache(`daily-${r}-today`, result, TTL_LIVE_MS);
+    }))
+  );
+}
+
+export function startCacheWarmer() {
+  if (warmerStarted) return;
+  warmerStarted = true;
+  // Warm immediately on startup
+  warmLiveCache();
+  // Then refresh every 14s
+  setInterval(warmLiveCache, 14_000);
 }
 
 // ---------------------------------------------------------------------------

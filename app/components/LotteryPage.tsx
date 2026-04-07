@@ -190,7 +190,7 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
     setRegionError((prev) => { const n = { ...prev }; delete n[r]; return n; });
 
     try {
-      const res = await fetch(`/api/lottery/daily?region=${r}`, { cache: "no-store" });
+      const res = await fetch(`/api/lottery/daily?region=${r}`);
       if (!res.ok) throw new Error(`Lỗi máy chủ: HTTP ${res.status}`);
       const data = (await res.json()) as DailyRegionResult;
       if (data.error && data.stations.length === 0) throw new Error(data.error);
@@ -271,7 +271,7 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
     setDateError(null);
     setDateStations(null);
     try {
-      const res = await fetch(`/api/lottery/daily?region=${r}&date=${dateIso}`, { cache: "no-store" });
+      const res = await fetch(`/api/lottery/daily?region=${r}&date=${dateIso}`);
       if (!res.ok) throw new Error(`Lỗi máy chủ: HTTP ${res.status}`);
       const data = (await res.json()) as DailyRegionResult;
       if (data.error && data.stations.length === 0) throw new Error(data.error);

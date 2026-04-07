@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { revalidateTag, revalidatePath } from "next/cache";
 
 export const dynamic = "force-dynamic";
 import { verifyAdminToken, COOKIE_NAME } from "@/lib/adminAuth";
@@ -49,5 +50,10 @@ export async function PUT(req: NextRequest) {
     update: data,
     create: { id: "main", ...data },
   });
+
+  // Xóa cache header và trang giới thiệu ngay khi admin cập nhật
+  revalidateTag("store-info-header");
+  revalidatePath("/gioi-thieu");
+
   return NextResponse.json(info);
 }

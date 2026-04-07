@@ -1,8 +1,7 @@
 "use client";
 import { useState, useCallback } from "react";
-import type { LotteryResult } from "../lib/lotteryData";
+import type { LotteryResult, DailyRegionResult } from "../lib/lotteryData";
 import { PRIZE_LABELS, ALL_STATIONS } from "../lib/lotteryData";
-import type { LotteryServiceResult } from "@/services/lotteryService";
 
 // ---------------------------------------------------------------------------
 // Lottery draw schedule — stationId[] per day of week (0 = CN … 6 = T7)
@@ -176,15 +175,20 @@ export default function TicketChecker() {
 
     setLoading(true);
     try {
-      const stationParam = selectedStation?.name
-        ? `&station=${encodeURIComponent(selectedStation.name)}` : "";
-      const res  = await fetch(`/api/lottery?region=${region}&date=${selectedDate}${stationParam}`);
+      const res = await fetch(`/api/lottery/daily?region=${region}&date=${selectedDate}`);
       if (!res.ok) throw new Error(`Lỗi máy chủ: HTTP ${res.status}`);
-      const data = (await res.json()) as LotteryServiceResult;
-      if (data.error) throw new Error(data.error);
-      if (!data.data)  throw new Error("Không có dữ liệu xổ số cho ngày này");
+      const data = (await res.json()) as DailyRegionResult;
+      if (data.error && data.stations.length === 0) throw new Error(data.error);
+      if (data.stations.length === 0) throw new Error("Không có dữ liệu xổ số cho ngày này");
 
-      setWinResult(checkTicket(ticketNumber, data.data));
+      // Tên station đã được normalize trong lotteryService (vd: "Hồ Chí Minh" → "TP. HCM")
+      const stationName = selectedStation?.name ?? "";
+      const station =
+        data.stations.find((s) => s.stationName === stationName) ??
+        data.stations.find((s) => s.stationId === stationId) ??
+        data.stations[0];
+
+      setWinResult(checkTicket(ticketNumber, station.results));
       setChecked(true);
     } catch (err) {
       setFetchError(err instanceof Error ? err.message : "Lỗi không xác định");

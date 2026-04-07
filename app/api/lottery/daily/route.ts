@@ -1,22 +1,18 @@
 import { NextResponse } from "next/server";
-import { fetchDailyRegionResult } from "@/services/lotteryService";
+import { fetchDailyRegionResult, startCacheWarmer } from "@/services/lotteryService";
 import type { Region } from "@/app/lib/lotteryData";
 
-// Never cache this route — results change per-prize during live draw
 export const dynamic = "force-dynamic";
 
 const VALID_REGIONS: Region[] = ["mb", "mt", "mn"];
 
-/**
- * GET /api/lottery/daily?region=mb
- * GET /api/lottery/daily?region=mn&date=2026-03-11  (YYYY-MM-DD)
- *
- * Returns DailyRegionResult with one StationResult per station.
- */
 export async function GET(request: Request) {
+  // Khởi động warmer lần đầu khi có request thực (không chạy lúc build)
+  startCacheWarmer();
+
   const { searchParams } = new URL(request.url);
   const region = searchParams.get("region") as Region | null;
-  const dateIso = searchParams.get("date") ?? undefined; // "YYYY-MM-DD" or undefined
+  const dateIso = searchParams.get("date") ?? undefined;
 
   if (!region || !VALID_REGIONS.includes(region)) {
     return NextResponse.json(
@@ -26,5 +22,13 @@ export async function GET(request: Request) {
   }
 
   const result = await fetchDailyRegionResult(region, dateIso);
-  return NextResponse.json(result);
+
+  const maxAge = dateIso ? 3600 : 20;
+  const swr = dateIso ? 86400 : 40;
+
+  return NextResponse.json(result, {
+    headers: {
+      "Cache-Control": `public, s-maxage=${maxAge}, stale-while-revalidate=${swr}`,
+    },
+  });
 }

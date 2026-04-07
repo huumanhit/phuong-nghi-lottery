@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { revalidateTag } from "next/cache";
 import { verifyAdminToken, COOKIE_NAME } from "@/lib/adminAuth";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
@@ -47,6 +48,7 @@ export async function POST(req: NextRequest) {
       update: { logoUrl: blob.url },
       create: { id: "main", logoUrl: blob.url },
     });
+    revalidateTag("store-info-header");
     return NextResponse.json({ url: blob.url });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

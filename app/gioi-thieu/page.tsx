@@ -27,7 +27,8 @@ async function getStoreInfo() {
   }
 }
 
-export const dynamic = "force-dynamic";
+// Cache 1 giờ — store info hiếm khi thay đổi
+export const revalidate = 3600;
 
 export const metadata = {
   title: "Giới Thiệu - Phương Nghi Xổ Số",
