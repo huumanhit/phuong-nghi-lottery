@@ -135,37 +135,80 @@ export function buildTicketHTML(
 
 /** Open a print window with an array of ticket HTMLs */
 export function openPrintWindow(tickets: string[], layout: PrintLayout): void {
-  const cols   = layout === "1x1" ? 1 : layout === "4x1" ? 2 : 3;
-  const fs     = layout === "6x1" ? "12px" : layout === "4x1" ? "15px" : "22px";
+  const cols     = layout === "1x1" ? 1 : layout === "4x1" ? 2 : 3;
+  const rows     = layout === "1x1" ? 1 : layout === "4x1" ? 2 : 2;
+  const perPage  = cols * rows;
+  const fs       = layout === "6x1" ? "11.5px" : layout === "4x1" ? "13.5px" : "26px";
+
+  // Group tickets into pages
+  const pages: string[][] = [];
+  for (let i = 0; i < tickets.length; i += perPage) {
+    pages.push(tickets.slice(i, i + perPage));
+  }
+
+  const pagesHTML = pages.map((pageTickets) => {
+    // Pad last page with empty slots so grid stays uniform
+    const slots = [...pageTickets];
+    while (slots.length < perPage) {
+      slots.push(`<div class="ticket empty"></div>`);
+    }
+    return `<div class="page"><div class="pgrid">${slots.join("")}</div></div>`;
+  }).join("");
 
   const origin = window.location.origin;
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>In Vé Dò - Phương Nghi</title><link rel="icon" type="image/png" href="${origin}/logo.png"><style>
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>In Vé Dò - Phương Nghi</title><link rel="icon" type="image/png" href="${origin}/logo.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;700;900&display=swap"><style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,Helvetica,sans-serif;font-size:${fs};background:#e8e8e8}
-    .container{display:grid;grid-template-columns:repeat(${cols},1fr);gap:5px;padding:5px}
-    .ticket{border:1.5px solid #aa0000;border-radius:3px;break-inside:avoid;page-break-inside:avoid;background:#fff;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.15)}
-    .hdr{background:linear-gradient(180deg,#dd1111,#aa0000);padding:4px 5px;text-align:center}
+    body{font-family:'Be Vietnam Pro',Arial,sans-serif;font-size:${fs};background:#e8e8e8}
+    .page{
+      width:210mm;height:297mm;padding:4mm;
+      page-break-after:always;break-after:page;
+      background:#fff;
+    }
+    .page:last-child{page-break-after:avoid;break-after:avoid}
+    .pgrid{
+      display:grid;
+      grid-template-columns:repeat(${cols},1fr);
+      grid-template-rows:repeat(${rows},1fr);
+      gap:3mm;
+      width:calc(210mm - 8mm);
+      height:calc(297mm - 8mm);
+    }
+    .ticket{
+      border:1.5px solid #aa0000;border-radius:3px;
+      background:#fff;overflow:visible;
+      display:flex;flex-direction:column;
+    }
+    .ticket.empty{border-color:transparent;background:transparent}
+    .hdr{background:linear-gradient(180deg,#dd1111,#aa0000);padding:3px 5px;text-align:center;flex-shrink:0}
     .tit{font-weight:900;color:#fff;font-size:1.1em;line-height:1.2;text-transform:uppercase;letter-spacing:.03em;text-shadow:0 1px 2px rgba(0,0,0,.3)}
-    .sub2{color:rgba(255,255,255,.82);font-size:.62em;margin-top:2px;letter-spacing:.14em;text-transform:uppercase}
-    .bp{padding:3px 4px 5px}
-    .dat{text-align:center;font-weight:700;color:#333;font-size:.88em;margin-bottom:3px;padding-bottom:2px;border-bottom:1.5px solid #e00}
-    .stn-name{text-align:center;font-weight:900;color:#cc0000;font-size:.95em;margin:2px 0 1px;text-transform:uppercase;letter-spacing:.03em}
-    table{width:100%;border-collapse:collapse;margin-top:1px}
+    .sub2{color:rgba(255,255,255,.82);font-size:.6em;margin-top:1px;letter-spacing:.12em;text-transform:uppercase}
+    .bp{padding:2px 4px 4px;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+    .dat{text-align:center;font-weight:700;color:#333;font-size:.85em;margin-bottom:2px;padding-bottom:2px;border-bottom:1.5px solid #e00;flex-shrink:0}
+    .stn-name{text-align:center;font-weight:900;color:#cc0000;font-size:.92em;margin:2px 0 1px;text-transform:uppercase;letter-spacing:.03em;flex-shrink:0}
+    table{width:100%;height:100%;border-collapse:collapse;margin-top:1px;flex:1;min-height:0}
+    tbody{height:100%}
+    tbody tr{height:1%}
     td,th{border:1px solid #e0e0e0}
-    .lbl{font-weight:900;padding:1px 2px;white-space:nowrap;vertical-align:middle;text-align:center;font-size:.85em;width:18px}
-    .nums{padding:1px 3px;vertical-align:middle;text-align:center;font-weight:700;color:#222;white-space:normal;line-height:1.4}
-    @page{margin:3mm}
-    @media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact;background:#fff}}
+    .lbl{font-weight:900;padding:1px 2px;white-space:nowrap;vertical-align:middle;text-align:center;font-size:.82em;width:18px}
+    .nums{padding:1px 3px;vertical-align:middle;text-align:center;font-weight:700;color:#222;white-space:normal;line-height:1.35}
+    @page{size:A4 portrait;margin:0}
+    @media print{
+      body{print-color-adjust:exact;-webkit-print-color-adjust:exact;background:#fff}
+      .page{background:#fff}
+    }
   </style></head><body>
-    <div class="container">${tickets.join("")}</div>
+    ${pagesHTML}
   </body></html>`;
 
   const win = window.open("", "_blank", "width=900,height=650");
   if (!win) { alert("Vui lòng cho phép popup để in vé dò"); return; }
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  setTimeout(() => { win.print(); }, 400);
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url  = URL.createObjectURL(blob);
+  win.location.href = url;
+  win.addEventListener("load", () => {
+    win.focus();
+    setTimeout(() => { win.print(); URL.revokeObjectURL(url); }, 300);
+  });
 }
 
 /** Get all dates (YYYY-MM-DD) between from and to inclusive, max 62 */
