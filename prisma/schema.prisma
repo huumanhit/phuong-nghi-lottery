@@ -98,3 +98,108 @@ model StoreInfo {
   headerSettings String   @default("")
   updatedAt      DateTime @updatedAt
 }
+
+model LandingSection {
+  id        String   @id @default(uuid())
+  title     String   @default("")
+  content   String   @default("")
+  imageUrl  String   @default("")
+  sortOrder Int      @default(0)
+  visible   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+model DealerPoint {
+  id        String   @id @default(uuid())
+  city      String   @default("TP. Hồ Chí Minh")
+  pointType String   @default("Điểm hợp tác")
+  name      String   @default("")
+  phone     String   @default("")
+  address   String   @default("")
+  mapUrl    String   @default("")
+  sortOrder Int      @default(0)
+  visible   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+  @@index([pointType])
+}
+
+model NewsItem {
+  id        String   @id @default(uuid())
+  title     String   @default("")
+  imageUrl  String   @default("")
+  linkUrl   String   @default("")
+  sortOrder Int      @default(0)
+  visible   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+model Article {
+  id          String   @id @default(uuid())
+  category    String   @default("tin-tuc")
+  title       String   @default("")
+  excerpt     String   @default("")
+  content     String   @default("")
+  imageUrl    String   @default("")
+  publishedAt DateTime @default(now())
+  sortOrder   Int      @default(0)
+  visible     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([publishedAt])
+  @@index([sortOrder])
+}
+
+model GalleryImage {
+  id          String   @id @default(uuid())
+  title       String   @default("")
+  description String   @default("")
+  imageUrl    String   @default("")
+  sortOrder   Int      @default(0)
+  visible     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+model VideoItem {
+  id           String   @id @default(uuid())
+  title        String   @default("")
+  description  String   @default("")
+  youtubeUrl   String   @default("")
+  thumbnailUrl String   @default("")
+  sortOrder    Int      @default(0)
+  visible      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+model JobPosting {
+  id           String   @id @default(uuid())
+  title        String   @default("")
+  description  String   @default("")
+  requirements String   @default("")
+  salary       String   @default("")
+  location     String   @default("")
+  contactName  String   @default("")
+  contactPhone String   @default("")
+  sortOrder    Int      @default(0)
+  visible      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([sortOrder])
+}

@@ -10,7 +10,10 @@ const nextConfig = {
   },
   experimental: {
     swcTraceProfiling: false,
+    cpus: 1,
   },
+  // Tắt source map production để giảm RAM build
+  productionBrowserSourceMaps: false,
 };
 
 export default nextConfig;
