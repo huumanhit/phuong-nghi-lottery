@@ -332,15 +332,40 @@ function parseDescription(description: string): LotteryResult | null {
 
 /**
  * Parse the actual draw date from the RSS item title.
- * Title format: "KẾT QUẢ XỔ SỐ MIỀN BẮC NGÀY 10/03 (Thứ Ba)"
+ * Supports multiple formats:
+ *   "KẾT QUẢ XỔ SỐ MIỀN BẮC NGÀY 10/03 (Thứ Ba)"
+ *   "KQXSMB ngày 14/04/2026"
+ *   "... 14/04/2026 ..."
  * Returns "DD/MM/YYYY" or null if not found.
  */
 function parseDateFromTitle(title: string): string | null {
-  const match = title.match(/ng[àa]y\s+(\d{1,2})\/(\d{1,2})/i);
-  if (!match) return null;
-  const day   = match[1].padStart(2, "0");
-  const month = match[2].padStart(2, "0");
-  const year  = new Date().getFullYear();
+  // Pattern 1: "ngày DD/MM/YYYY" or "ngày DD/MM"
+  const m1 = title.match(/ng[àa]y\s+(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/i);
+  if (m1) {
+    const day   = m1[1].padStart(2, "0");
+    const month = m1[2].padStart(2, "0");
+    const year  = m1[3] ?? String(new Date().getFullYear());
+    return `${day}/${month}/${year}`;
+  }
+  // Pattern 2: standalone "DD/MM/YYYY" anywhere in title
+  const m2 = title.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/);
+  if (m2) {
+    return `${m2[1].padStart(2, "0")}/${m2[2].padStart(2, "0")}/${m2[3]}`;
+  }
+  return null;
+}
+
+/** Parse date from RSS <pubDate> element (RFC 2822). Returns "DD/MM/YYYY" or null. */
+function parseDateFromPubDate(pubDate: string): string | null {
+  if (!pubDate) return null;
+  const d = new Date(pubDate);
+  if (isNaN(d.getTime())) return null;
+  // pubDate is usually in UTC; shift to Vietnam time (UTC+7)
+  const vnMs = d.getTime() + 7 * 60 * 60 * 1000;
+  const vn = new Date(vnMs);
+  const day   = String(vn.getUTCDate()).padStart(2, "0");
+  const month = String(vn.getUTCMonth() + 1).padStart(2, "0");
+  const year  = String(vn.getUTCFullYear());
   return `${day}/${month}/${year}`;
 }
 
@@ -438,7 +463,10 @@ function extractAllRssItems(xml: string): Array<{ description: string; drawDate:
       block.match(/<title>([\s\S]*?)<\/title>/i)?.[1] ??
       "";
 
-    const drawDate = parseDateFromTitle(title);
+    const pubDate =
+      block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1] ?? "";
+
+    const drawDate = parseDateFromTitle(title) ?? parseDateFromPubDate(pubDate);
     if (desc && drawDate) items.push({ description: desc, drawDate });
   }
 
@@ -532,7 +560,9 @@ function extractAllRssItemsWithTitle(
       block.match(/<title>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/title>/i)?.[1] ??
       block.match(/<title>([\s\S]*?)<\/title>/i)?.[1] ??
       "";
-    const drawDate = parseDateFromTitle(title);
+    const pubDate =
+      block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1] ?? "";
+    const drawDate = parseDateFromTitle(title) ?? parseDateFromPubDate(pubDate);
     if (desc && drawDate) items.push({ description: desc, drawDate, title });
   }
 
