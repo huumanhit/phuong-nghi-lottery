@@ -36,7 +36,7 @@ export default function LandingPageAdmin() {
   useEffect(() => {
     const url = `${window.location.origin}/dai-ly`;
     import("qrcode").then((QRCode) => {
-      QRCode.toDataURL(url, { width: 320, margin: 2, color: { dark: "#7f1d1d", light: "#ffffff" } }).then(setQrDataUrl);
+      QRCode.toDataURL(url, { width: 320, margin: 2, color: { dark: "#000000", light: "#ffffff" } }).then(setQrDataUrl);
     });
   }, []);
 
