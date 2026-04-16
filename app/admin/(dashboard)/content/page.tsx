@@ -313,6 +313,8 @@ function GalleryTab({ setError }: { setError: (e: string) => void }) {
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState<Omit<GalleryImage, "id">>(EMPTY_IMG);
   const [saving, setSaving] = useState(false);
+  const [uploadingAdd, setUploadingAdd] = useState(false);
+  const [uploadingEdit, setUploadingEdit] = useState(false);
   const editImgRef = useRef<HTMLInputElement>(null);
   const addImgRef = useRef<HTMLInputElement>(null);
 
@@ -385,12 +387,16 @@ function GalleryTab({ setError }: { setError: (e: string) => void }) {
                     <label className={labelCls}>Hình ảnh</label>
                     <input ref={editImgRef} type="file" accept="image/*" onChange={async (e) => {
                       const f = e.target.files?.[0]; if (!f) return;
+                      setUploadingEdit(true);
                       setEditForm(x => ({ ...x, imageUrl: URL.createObjectURL(f) }));
-                      const url = await uploadImage(f, setError); if (url) setEditForm(x => ({ ...x, imageUrl: url }));
+                      const url = await uploadImage(f, setError);
+                      if (url) setEditForm(x => ({ ...x, imageUrl: url }));
+                      setUploadingEdit(false);
                     }} className="hidden" />
                     <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => editImgRef.current?.click()} className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Chọn ảnh</button>
-                      {editForm.imageUrl && <Image src={editForm.imageUrl} alt="" width={48} height={48} className="w-12 h-12 rounded-lg object-cover border border-gray-200" unoptimized />}
+                      <button type="button" onClick={() => editImgRef.current?.click()} disabled={uploadingEdit} className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-60">{uploadingEdit ? "Đang tải..." : "Chọn ảnh"}</button>
+                      {editForm.imageUrl && !editForm.imageUrl.startsWith("blob:") && <Image src={editForm.imageUrl} alt="" width={48} height={48} className="w-12 h-12 rounded-lg object-cover border border-gray-200" unoptimized />}
+                      {uploadingEdit && <span className="text-xs text-gray-400">Đang upload ảnh...</span>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 pt-4">
@@ -399,7 +405,7 @@ function GalleryTab({ setError }: { setError: (e: string) => void }) {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-red-700 text-white text-sm font-semibold rounded-lg disabled:opacity-60">{saving ? "Đang lưu..." : "Lưu"}</button>
+                  <button onClick={handleSave} disabled={saving || uploadingEdit} className="px-4 py-2 bg-red-700 text-white text-sm font-semibold rounded-lg disabled:opacity-60">{saving ? "Đang lưu..." : uploadingEdit ? "Chờ upload ảnh..." : "Lưu"}</button>
                   <button onClick={() => setEditingId(null)} className="px-3 py-2 border border-gray-300 text-gray-600 text-sm rounded-lg">Hủy</button>
                 </div>
               </div>
@@ -451,12 +457,16 @@ function GalleryTab({ setError }: { setError: (e: string) => void }) {
               <label className={labelCls}>Hình ảnh *</label>
               <input ref={addImgRef} type="file" accept="image/*" onChange={async (e) => {
                 const f = e.target.files?.[0]; if (!f) return;
+                setUploadingAdd(true);
                 setAddForm(x => ({ ...x, imageUrl: URL.createObjectURL(f) }));
-                const url = await uploadImage(f, setError); if (url) setAddForm(x => ({ ...x, imageUrl: url }));
+                const url = await uploadImage(f, setError);
+                if (url) setAddForm(x => ({ ...x, imageUrl: url }));
+                setUploadingAdd(false);
               }} className="hidden" />
               <div className="flex items-center gap-2">
-                <button type="button" onClick={() => addImgRef.current?.click()} className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Chọn ảnh</button>
-                {addForm.imageUrl && <Image src={addForm.imageUrl} alt="" width={48} height={48} className="w-12 h-12 rounded-lg object-cover border border-gray-200" unoptimized />}
+                <button type="button" onClick={() => addImgRef.current?.click()} disabled={uploadingAdd} className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-60">{uploadingAdd ? "Đang tải..." : "Chọn ảnh"}</button>
+                {addForm.imageUrl && !addForm.imageUrl.startsWith("blob:") && <Image src={addForm.imageUrl} alt="" width={48} height={48} className="w-12 h-12 rounded-lg object-cover border border-gray-200" unoptimized />}
+                {uploadingAdd && <span className="text-xs text-gray-400">Đang upload ảnh...</span>}
               </div>
             </div>
             <div className="flex items-center gap-2 pt-4">
@@ -465,7 +475,7 @@ function GalleryTab({ setError }: { setError: (e: string) => void }) {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleAdd} disabled={saving} className="px-5 py-2 bg-red-700 hover:bg-red-800 text-white font-semibold text-sm rounded-lg disabled:opacity-60">{saving ? "Đang thêm..." : "Thêm"}</button>
+            <button onClick={handleAdd} disabled={saving || uploadingAdd} className="px-5 py-2 bg-red-700 hover:bg-red-800 text-white font-semibold text-sm rounded-lg disabled:opacity-60">{saving ? "Đang thêm..." : uploadingAdd ? "Chờ upload ảnh..." : "Thêm"}</button>
             <button onClick={() => setShowAdd(false)} className="px-4 py-2 border border-gray-300 text-gray-600 text-sm rounded-lg">Hủy</button>
           </div>
         </div>
