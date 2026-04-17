@@ -916,11 +916,34 @@ async function _fetchDailyRegionResult(
     // Fall through to RSS if live API has no real data yet
   }
 
+  // For historical date lookups: also try live API first.
+  // The live API often still holds yesterday's completed results if today's
+  // draw hasn't started yet, while the RSS feed may lag behind by 1–2 days.
+  if (dateIso) {
+    const targetDateVN = isoToVN(dateIso);
+    const live = await fetchLiveRegionResult(region);
+    if (
+      live.stations.length > 0 &&
+      live.date === targetDateVN &&
+      live.stations.some((s) =>
+        Object.values(s.results).some((arr) => arr.length > 0)
+      )
+    ) {
+      return live;
+    }
+  }
+
   const targetDateVN = dateIso ? isoToVN(dateIso) : null;
 
   try {
+    // For date-specific lookups use no-store so we always read the freshest
+    // RSS feed rather than a Next.js-cached copy that may predate the result.
+    const fetchOptions = dateIso
+      ? { cache: "no-store" as const }
+      : { next: { revalidate: CACHE_TTL_SECONDS } };
+
     const response = await fetch(RSS_ENDPOINTS[region], {
-      next: { revalidate: CACHE_TTL_SECONDS },
+      ...fetchOptions,
       headers: {
         Accept: "application/rss+xml, application/xml, text/xml, */*",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
