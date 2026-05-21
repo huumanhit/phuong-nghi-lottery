@@ -203,3 +203,21 @@ model JobPosting {
 
   @@index([sortOrder])
 }
+
+model Employee {
+  id           String   @id @default(uuid())
+  name         String   @default("")
+  position     String   @default("")
+  department   String   @default("")
+  phone        String   @default("")
+  email        String   @default("")
+  avatarUrl    String   @default("")
+  bio          String   @default("")
+  employeeCode String   @default("")
+  sortOrder    Int      @default(0)
+  visible      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([sortOrder])
+}

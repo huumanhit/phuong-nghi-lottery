@@ -34,7 +34,7 @@ export default function LandingPageAdmin() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const url = `${window.location.origin}/dai-ly`;
+    const url = `${window.location.origin}/hub`;
     import("qrcode").then((QRCode) => {
       QRCode.toDataURL(url, { width: 320, margin: 2, color: { dark: "#000000", light: "#ffffff" } }).then(setQrDataUrl);
     });
@@ -98,18 +98,24 @@ function QRTab({ qrDataUrl }: { qrDataUrl: string }) {
           : <div className="w-40 h-40 bg-gray-100 rounded-lg animate-pulse" />}
       </div>
       <div className="flex-1">
-        <h2 className="text-base font-bold text-gray-800 mb-1">Mã QR — Trang Đại Lý</h2>
-        <p className="text-sm text-gray-500 mb-3">Khách quét mã QR này sẽ đến trang giới thiệu đại lý.</p>
-        <p className="text-xs text-gray-400 font-mono bg-gray-50 px-3 py-1.5 rounded-lg inline-block mb-3">
-          {typeof window !== "undefined" ? `${window.location.origin}/dai-ly` : "/dai-ly"}
+        <h2 className="text-base font-bold text-gray-800 mb-1">Mã QR — Trang Chào Mừng</h2>
+        <p className="text-sm text-gray-500 mb-2">
+          Khách quét mã QR này sẽ thấy màn hình <strong>chọn</strong>: vào Trang Đại Lý hoặc Đội Ngũ Nhân Viên.
         </p>
-        <div>
+        <p className="text-xs text-gray-400 font-mono bg-gray-50 px-3 py-1.5 rounded-lg inline-block mb-3">
+          {typeof window !== "undefined" ? `${window.location.origin}/hub` : "/hub"}
+        </p>
+        <div className="flex gap-2 flex-wrap">
           {qrDataUrl && (
-            <a href={qrDataUrl} download="qr-dai-ly-phuong-nghi.png"
+            <a href={qrDataUrl} download="qr-cua-hang.png"
               className="inline-block px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-semibold text-sm rounded-lg transition-colors">
               Tải về PNG
             </a>
           )}
+          <a href="/hub" target="_blank"
+            className="inline-block px-4 py-2 border border-gray-300 text-gray-600 hover:bg-gray-50 font-semibold text-sm rounded-lg transition-colors">
+            Xem trang /hub ↗
+          </a>
         </div>
       </div>
     </div>
