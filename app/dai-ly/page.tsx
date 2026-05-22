@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import DealerFilter from "./DealerFilter";
 import SiteHeader from "@/app/components/SiteHeader";
 import SiteFooter from "@/app/components/SiteFooter";
+import ChoiceSheet from "./ChoiceSheet";
 
 type DealerPointRow = { id: string; city: string; pointType: string; name: string; phone: string; address: string; mapUrl: string; sortOrder: number; visible: boolean };
 type NewsItemRow     = { id: string; title: string; imageUrl: string; linkUrl: string; sortOrder: number; visible: boolean };
@@ -67,6 +68,7 @@ export default async function DaiLyPage() {
 
   return (
     <div className="min-h-screen bg-white font-sans">
+      <ChoiceSheet />
       <style>{`
         @keyframes heroGlow {
           0%,100%{color:#fff;text-shadow:0 0 10px rgba(255,215,0,.3)}

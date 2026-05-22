@@ -29,6 +29,7 @@ const MENU_SECTIONS = [
       { label: "Dò Vé Số Online",            href: "/kiem-tra"     },
       { label: "Đổi Vé Trúng Thưởng",        href: "/doi-ve-trung" },
       { label: "Giới Thiệu Cửa Hàng",        href: "/gioi-thieu"   },
+      { label: "Đội Ngũ Nhân Viên",           href: "/nhan-vien"    },
     ],
   },
   {
@@ -48,6 +49,7 @@ const NAV_TABS = [
   { label: "Dò Vé",      href: "/kiem-tra"    },
   { label: "In Vé",      href: "/in-ve-do"    },
   { label: "Giới Thiệu", href: "/gioi-thieu"  },
+  { label: "Nhân Viên",  href: "/nhan-vien"  },
 ];
 
 // ---------------------------------------------------------------------------
