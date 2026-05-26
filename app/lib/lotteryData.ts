@@ -195,3 +195,12 @@ export function extractLoNumbers(result: Partial<LotteryResult>): Set<string> {
   });
   return set;
 }
+
+export function extract3DigitLoNumbers(result: Partial<LotteryResult>): Set<string> {
+  const all = getTotalNumbers(result);
+  const set = new Set<string>();
+  all.forEach((n) => {
+    if (n.length >= 3) set.add(n.slice(-3));
+  });
+  return set;
+}

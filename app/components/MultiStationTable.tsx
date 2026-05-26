@@ -171,6 +171,13 @@ interface Props {
   revealed?: Set<string>;
   isComplete?: boolean;
   isLivePolling?: boolean;
+  digitMode?: "full" | "2so" | "3so";
+}
+
+function trimNum(num: string, mode: "full" | "2so" | "3so"): string {
+  if (mode === "2so") return num.slice(-2);
+  if (mode === "3so") return num.length >= 3 ? num.slice(-3) : num;
+  return num;
 }
 
 export default function MultiStationTable({
@@ -179,6 +186,7 @@ export default function MultiStationTable({
   revealed = new Set(),
   isComplete = true,
   isLivePolling = false,
+  digitMode = "full",
 }: Props) {
   if (stations.length === 0) return null;
 
@@ -194,14 +202,14 @@ export default function MultiStationTable({
       >
         {/* ── Header ── */}
         <thead>
-          <tr className="bg-red-700 text-white">
-            <th className="py-1.5 px-1 text-xs font-bold border-r border-red-500 whitespace-nowrap text-red-200" style={{ width: "52px" }}>
+          <tr className="bg-white border-b border-gray-200">
+            <th className="py-1.5 px-1 text-xs font-bold border-r border-gray-200 whitespace-nowrap text-gray-500" style={{ width: "52px" }}>
               CN
             </th>
             {stations.map((s) => (
               <th
                 key={s.stationId}
-                className="py-1.5 px-1 text-xs font-bold border-r border-red-500 last:border-r-0 text-center leading-tight"
+                className="py-1.5 px-1 text-xs font-bold border-r border-gray-200 last:border-r-0 text-center leading-tight text-blue-600"
               >
                 {s.stationName}
               </th>
@@ -265,7 +273,7 @@ export default function MultiStationTable({
                                   }`}
                                   style={{ fontSize, lineHeight: "1.3" }}
                                 >
-                                  {num}
+                                  {trimNum(num, digitMode)}
                                 </span>
                               );
                             })}
@@ -334,7 +342,7 @@ export default function MultiStationTable({
                                     }`}
                                     style={{ fontSize, lineHeight: "1.4", letterSpacing: "-0.02em" }}
                                   >
-                                    {num}
+                                    {trimNum(num, digitMode)}
                                   </span>
                                 ) : (
                                   <span className="inline-flex items-center justify-center" style={{ fontSize, lineHeight: "1.4", minWidth: "2ch" }}>

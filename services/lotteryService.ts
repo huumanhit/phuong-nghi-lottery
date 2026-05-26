@@ -961,6 +961,11 @@ async function _fetchDailyRegionResult(
 
     const itemsForDate = allItems.filter((i) => i.drawDate === targetDate);
     if (itemsForDate.length === 0) {
+      // RSS doesn't carry this date — try xskt.com.vn 30-ngay page (up to 30 days history)
+      if (dateIso) {
+        const pageResult = await fetchHistoricalFromXskt(region, dateIso);
+        if (pageResult.stations.length > 0) return pageResult;
+      }
       const available = allItems.map((i) => i.drawDate).join(", ");
       return {
         date: targetDate,
@@ -1054,6 +1059,187 @@ async function _fetchDailyRegionResult(
       region,
       stations: [],
       error: err instanceof Error ? err.message : "Lỗi không xác định",
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Historical fallback: scrape xskt.com.vn/30-ngay pages
+// Covers up to 30 days of history — used when RSS (3-7 days) doesn't have data
+// ---------------------------------------------------------------------------
+
+const XSKT_SLUG: Record<Region, string> = { mb: "xsmb", mt: "xsmt", mn: "xsmn" };
+
+/** Parse XSMN/XSMT tables from 30-ngay HTML for a specific "DD/MM" date */
+function parseXsmnTablesForDate(html: string, targetDate: string): StationResult[] {
+  const results: StationResult[] = [];
+  const tableRe = /<table[^>]*class="tbl-xs(?:mn|mt)[^"]*"[^>]*>([\s\S]*?)<\/table>/gi;
+  let tableMatch: RegExpExecArray | null;
+
+  while ((tableMatch = tableRe.exec(html)) !== null) {
+    const tHtml = tableMatch[1] as string;
+    const rowRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+    const rows: string[] = [];
+    let rm: RegExpExecArray | null;
+    while ((rm = rowRe.exec(tHtml)) !== null) rows.push(rm[1] as string);
+    if (rows.length < 2) continue;
+
+    // Date lives in first <th>: e.g. <th><a>Thứ 3</a><br>26/05</th>
+    const firstThMatch = (rows[0] as string).match(/<th[^>]*>([\s\S]*?)<\/th>/i);
+    const firstTh = firstThMatch ? (firstThMatch[1] as string) : "";
+    const dm = stripHtml(firstTh).match(/(\d{1,2})\/(\d{1,2})/);
+    if (!dm) continue;
+    const tableDate = `${(dm[1] as string).padStart(2, "0")}/${(dm[2] as string).padStart(2, "0")}`;
+    if (tableDate !== targetDate) continue;
+
+    // Station names from <th> elements — skip first (date)
+    const stationNames: string[] = [];
+    const thRe = /<th[^>]*>([\s\S]*?)<\/th>/gi;
+    let thMatch: RegExpExecArray | null;
+    let thIdx = 0;
+    while ((thMatch = thRe.exec(rows[0] as string)) !== null) {
+      if (thIdx > 0) {
+        const inner = thMatch[1] as string;
+        const link = inner.match(/<a[^>]*>([^<]+)<\/a>/);
+        stationNames.push(link ? (link[1] as string).trim() : stripHtml(inner).trim());
+      }
+      thIdx++;
+    }
+    if (stationNames.length === 0) continue;
+
+    const partial: Array<Record<string, string[]>> = stationNames.map(() => ({}));
+
+    for (let ri = 1; ri < rows.length; ri++) {
+      const rowHtml = rows[ri] as string;
+      const cellRe = /<td([^>]*)>([\s\S]*?)<\/td>/gi;
+      const cellAttrs: string[] = [];
+      const cellInners: string[] = [];
+      let cm: RegExpExecArray | null;
+      while ((cm = cellRe.exec(rowHtml)) !== null) {
+        cellAttrs.push(cm[1] as string);
+        cellInners.push(cm[2] as string);
+      }
+      if (cellAttrs.length < 2) continue;
+      const titleM = (cellAttrs[0] as string).match(/title="([^"]+)"/);
+      const key = titleM ? matchPrizeKey(titleM[1] as string) : null;
+      if (!key) continue;
+
+      for (let i = 0; i < stationNames.length; i++) {
+        const nums = extractNumbers(stripHtml(cellInners[i + 1] ?? ""));
+        if (nums.length > 0) {
+          const ex = partial[i]?.[key] ?? [];
+          if (partial[i]) partial[i][key] = [...ex, ...nums];
+        }
+      }
+    }
+
+    for (let i = 0; i < stationNames.length; i++) {
+      if ((partial[i]?.["special"]?.length ?? 0) > 0) {
+        const name = normalizeStationName(stationNames[i] as string);
+        results.push({
+          stationId: stationSlug(name),
+          stationName: name,
+          results: normalizeMnMtResult(toFullResult(partial[i] as Partial<LotteryResult>)),
+        });
+      }
+    }
+  }
+
+  return results;
+}
+
+/** Parse XSMB tables from 30-ngay HTML for a specific "DD/MM" date */
+function parseXsmbTablesForDate(html: string, targetDate: string): StationResult | null {
+  const tableRe = /<table[^>]*class="result"[^>]*>([\s\S]*?)<\/table>/gi;
+  let tableMatch: RegExpExecArray | null;
+
+  while ((tableMatch = tableRe.exec(html)) !== null) {
+    const tHtml = tableMatch[1] as string;
+    const rowRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+    const rows: string[] = [];
+    let rm: RegExpExecArray | null;
+    while ((rm = rowRe.exec(tHtml)) !== null) rows.push(rm[1] as string);
+    if (rows.length < 2) continue;
+
+    // Date in data-url="thu-do/22-05-2026"
+    const du = (rows[0] as string).match(/data-url="[^"]*?(\d{2})-(\d{2})-\d{4}"/);
+    if (!du) continue;
+    const tableDate = `${du[1] as string}/${du[2] as string}`;
+    if (tableDate !== targetDate) continue;
+
+    const partial: Record<string, string[]> = {};
+
+    for (let ri = 1; ri < rows.length; ri++) {
+      const rowHtml = rows[ri] as string;
+      const cellRe = /<td([^>]*)>([\s\S]*?)<\/td>/gi;
+      const cellAttrs: string[] = [];
+      const cellInners: string[] = [];
+      let cm: RegExpExecArray | null;
+      while ((cm = cellRe.exec(rowHtml)) !== null) {
+        cellAttrs.push(cm[1] as string);
+        cellInners.push(cm[2] as string);
+      }
+      if (cellAttrs.length < 2) continue;
+      const titleM = (cellAttrs[0] as string).match(/title="([^"]+)"/);
+      if (!titleM) continue;
+      const key = matchPrizeKey(titleM[1] as string);
+      if (!key) continue;
+
+      const nums = extractNumbers(stripHtml(cellInners[1] ?? ""));
+      if (nums.length > 0) {
+        partial[key] = [...(partial[key] ?? []), ...nums];
+      }
+    }
+
+    if ((partial["special"]?.length ?? 0) === 0) continue;
+
+    const headerText = stripHtml(rows[0] as string);
+    const stationMatch = headerText.match(/\(([^)]+)\)/);
+    const stationName = stationMatch ? (stationMatch[1] as string) : "Hà Nội";
+
+    return {
+      stationId: stationSlug(stationName),
+      stationName,
+      results: toFullResult(partial as Partial<LotteryResult>),
+    };
+  }
+  return null;
+}
+
+/** Fetch xskt.com.vn/30-ngay page and extract data for a specific date */
+async function fetchHistoricalFromXskt(region: Region, dateIso: string): Promise<DailyRegionResult> {
+  const url = `https://xskt.com.vn/${XSKT_SLUG[region]}/30-ngay`;
+  const [y, m, d] = dateIso.split("-");
+  const dateVN = `${d}/${m}/${y}`;
+  const targetShort = `${d}/${m}`;
+
+  try {
+    const res = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        Accept: "text/html,application/xhtml+xml",
+      },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const html = await res.text();
+
+    let stations: StationResult[] = [];
+    if (region === "mb") {
+      const s = parseXsmbTablesForDate(html, targetShort);
+      if (s) stations = [s];
+    } else {
+      stations = parseXsmnTablesForDate(html, targetShort);
+    }
+
+    if (stations.length === 0) {
+      return { date: dateVN, region, stations: [], error: `Không có dữ liệu cho ngày ${dateVN}` };
+    }
+    return { date: dateVN, region, stations, error: null };
+  } catch (err) {
+    return {
+      date: dateVN, region, stations: [],
+      error: err instanceof Error ? err.message : "Lỗi tải trang lịch sử",
     };
   }
 }

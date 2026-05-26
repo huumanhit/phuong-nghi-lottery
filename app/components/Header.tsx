@@ -43,13 +43,15 @@ const MENU_SECTIONS = [
 ];
 
 const NAV_TABS = [
-  { label: "XSMN",       href: "/?region=mn"  },
-  { label: "XSMT",       href: "/?region=mt"  },
-  { label: "XSMB",       href: "/?region=mb"  },
-  { label: "Dò Vé",      href: "/kiem-tra"    },
-  { label: "In Vé",      href: "/in-ve-do"    },
-  { label: "Giới Thiệu", href: "/gioi-thieu"  },
-  { label: "Nhân Viên",  href: "/nhan-vien"  },
+  { label: "TRANG CHỦ",      href: "/"             },
+  { label: "KẾT QUẢ XỔ SỐ", href: "/?region=mn"   },
+  { label: "DÒ VÉ SỐ",      href: "/kiem-tra"     },
+  { label: "IN VÉ DÒ",      href: "/in-ve-do"     },
+  { label: "ĐỔI THƯỞNG",    href: "/doi-ve-trung" },
+  { label: "ĐẠI LÝ",        href: "/dai-ly"       },
+  { label: "TIN TỨC",       href: "/tin-tuc"      },
+  { label: "NHÂN VIÊN",     href: "/nhan-vien"    },
+  { label: "LIÊN HỆ",       href: "/lien-he"      },
 ];
 
 // ---------------------------------------------------------------------------
@@ -128,6 +130,17 @@ export default function Header({
           `}</style>
 
           <div className="flex items-center gap-2">
+            {/* Phone number */}
+            <a
+              href="tel:0989007772"
+              className="hidden md:flex items-center gap-1.5 bg-yellow-400 hover:bg-yellow-300 text-red-900 px-3 py-1.5 rounded-lg font-extrabold text-sm transition-colors"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.47 11.47 0 003.59.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.47 11.47 0 00.57 3.59 1 1 0 01-.25 1.01l-2.2 2.2z"/>
+              </svg>
+              0989 007 772
+            </a>
+
             {/* Auth button */}
             {session ? (
               <div className="flex items-center gap-2">

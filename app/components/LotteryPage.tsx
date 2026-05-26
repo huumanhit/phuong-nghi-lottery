@@ -14,7 +14,6 @@ import CountdownTimer from "./CountdownTimer";
 import MultiStationTable from "./MultiStationTable";
 import LotoGrid from "./LotoGrid";
 import LotoStationGrid from "./LotoStationGrid";
-import RegionTabs from "./RegionTabs";
 import LotoStatsPanel from "./LotoStatsPanel";
 import LoDauDuoiTable from "./LoDauDuoiTable";
 import LotoFrequencyPanel from "./LotoFrequencyPanel";
@@ -34,22 +33,6 @@ function isoToVN(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
-/** Returns last 5 days as tab descriptors, today last */
-function getLast5Days(): Array<{ iso: string; label: string; isToday: boolean }> {
-  const result = [];
-  const now = new Date();
-  for (let i = 4; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(now.getDate() - i);
-    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    const label =
-      i === 0
-        ? `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`
-        : `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
-    result.push({ iso, label, isToday: i === 0 });
-  }
-  return result;
-}
 
 function emptyResult(): LotteryResult {
   return {
@@ -116,6 +99,37 @@ const REGION_NAMES: Record<Region, string> = {
   mn: "MIỀN NAM",
 };
 
+const REGION_CODES: Record<Region, string> = {
+  mb: "XSMB",
+  mt: "XSMT",
+  mn: "XSMN",
+};
+
+const DAY_TABS = [
+  { dow: 1, label: "Thứ 2" },
+  { dow: 2, label: "Thứ 3" },
+  { dow: 3, label: "Thứ 4" },
+  { dow: 4, label: "Thứ 5" },
+  { dow: 5, label: "Thứ 6" },
+  { dow: 6, label: "Thứ 7" },
+  { dow: 0, label: "CN" },
+];
+
+const VN_DOW_LOWER = ["chủ nhật", "thứ 2", "thứ 3", "thứ 4", "thứ 5", "thứ 6", "thứ 7"];
+
+function getTodayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function getMostRecentDateOfDay(dow: number): string {
+  const now = new Date();
+  const daysBack = (now.getDay() - dow + 7) % 7;
+  const d = new Date(now);
+  d.setDate(d.getDate() - daysBack);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 const DRAW_TIMES: Record<Region, string> = {
   mb: "18:15",
   mt: "17:30",
@@ -176,6 +190,10 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [shareStatus, setShareStatus]       = useState<"idle" | "copied">("idle");
   const [isZoomed, setIsZoomed]             = useState(false);
+
+  // Digit display mode — shared between result table and lô grid
+  const [digitMode, setDigitMode] = useState<"full" | "2so" | "3so">("full");
+  const [muted, setMuted]         = useState(true);
 
   // Loto digit toggle — mutually exclusive
   const [lotoMode, setLotoMode] = useState<"units" | "tens" | null>(null);
@@ -270,17 +288,57 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
     setDateLoading(true);
     setDateError(null);
     setDateStations(null);
-    try {
-      const res = await fetch(`/api/lottery/daily?region=${r}&date=${dateIso}`);
-      if (!res.ok) throw new Error(`Lỗi máy chủ: HTTP ${res.status}`);
-      const data = (await res.json()) as DailyRegionResult;
-      if (data.error && data.stations.length === 0) throw new Error(data.error);
-      setDateStations(data.stations);
-    } catch (err) {
-      setDateError(err instanceof Error ? err.message : "Không thể tải dữ liệu");
-    } finally {
-      setDateLoading(false);
+
+    // Try requested date, then fall back up to 3 previous weeks (same day of week)
+    let tryDate = dateIso;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const res = await fetch(`/api/lottery/daily?region=${r}&date=${tryDate}`);
+        if (!res.ok) throw new Error(`Lỗi máy chủ: HTTP ${res.status}`);
+        const data = (await res.json()) as DailyRegionResult;
+
+        if (data.stations.length > 0) {
+          setDateStations(data.stations);
+          if (tryDate !== dateIso) setSelectedDate(tryDate);
+          setDateLoading(false);
+          return;
+        }
+
+        // No results for this date — go back 7 days (same day of week)
+        const d = new Date(tryDate + "T00:00:00");
+        d.setDate(d.getDate() - 7);
+        tryDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      } catch (err) {
+        setDateError(err instanceof Error ? err.message : "Không thể tải dữ liệu");
+        setDateLoading(false);
+        return;
+      }
     }
+
+    // All same-weekday attempts failed (RSS only holds ~3-5 days).
+    // Fallback: fetch the latest available result for this region.
+    try {
+      const res = await fetch(`/api/lottery/daily?region=${r}`);
+      if (res.ok) {
+        const data = (await res.json()) as DailyRegionResult;
+        if (data.stations.length > 0) {
+          setDateStations(data.stations);
+          // Convert VN date "DD/MM/YYYY" → ISO to update selectedDate
+          if (data.date) {
+            const parts = data.date.split("/");
+            if (parts.length === 3) {
+              const isoFallback = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+              setSelectedDate(isoFallback);
+            }
+          }
+          setDateLoading(false);
+          return;
+        }
+      }
+    } catch { /* ignore */ }
+
+    setDateError("Không tìm thấy kết quả cho ngày này");
+    setDateLoading(false);
   }, []);
 
   const handleDateChange = useCallback((iso: string) => {
@@ -412,8 +470,6 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
   // -------------------------------------------------------------------------
   // Derived display values
   // -------------------------------------------------------------------------
-  const days = getLast5Days();
-
   const currentLoading = isDateMode ? dateLoading : regionLoading[region];
   const currentError   = isDateMode ? dateError   : (regionError[region] ?? null);
 
@@ -469,6 +525,17 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
   // Live mode: polling is on + viewing today + draw not yet done
   // (we always show today's table — either empty spinners or partial results)
   const isLiveWithTodayData = isLivePolling && !isDateMode && !isDrawComplete;
+
+  // Derived DOW + breadcrumb values for the new tab layout
+  const activeDow = selectedDate
+    ? new Date(selectedDate + "T00:00:00").getDay()
+    : new Date().getDay();
+  const activeDowText = isDateMode ? VN_DOW_LOWER[activeDow] : "hôm nay";
+  const breadcrumbDate = (() => {
+    const iso = selectedDate || getTodayIso();
+    const [y, m, d] = iso.split("-");
+    return `${parseInt(d)}-${parseInt(m)}-${y}`;
+  })();
 
   // LotoGrid: combined lo numbers
   const loSource: LotteryResult = region === "mb"
@@ -659,42 +726,36 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
   return (
     <>
     <div className="bg-gray-50">
-      {/* ---- Page title ---- */}
-      <div className="mb-4">
-        <h1 className="text-lg font-extrabold text-red-800 uppercase tracking-wide">
-          Trực Tiếp Xổ Số {REGION_NAMES[region]}
-        </h1>
-        <p className="text-gray-500 text-sm mt-0.5">
-          Ngày{" "}
-          <span className="font-semibold text-gray-700">
-            {isDateMode && selectedDate ? isoToVN(selectedDate) : today}
-          </span>
-          {!isDateMode && isOldData && (
-            <span className="ml-2 text-xs text-orange-500 font-semibold">
-              (đang chờ kết quả hôm nay)
-            </span>
-          )}
-        </p>
-      </div>
-
-      {/* ---- Date tab pills ---- */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 mb-3 scrollbar-none">
-        {days.map((day) => {
-          const isActive = day.isToday ? !selectedDate : selectedDate === day.iso;
-          return (
-            <button
-              key={day.iso}
-              onClick={() => handleDateChange(day.isToday ? "" : day.iso)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-                isActive
-                  ? "bg-red-600 text-white shadow"
-                  : "bg-white text-gray-600 border border-gray-200 hover:border-red-300 hover:text-red-600"
-              }`}
-            >
-              {day.label}
-            </button>
-          );
-        })}
+      {/* ---- Region label + day-of-week tab row ---- */}
+      <div className="mb-3 border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden">
+        <div className="flex flex-wrap items-stretch">
+          {/* Current region label — full width on mobile, auto on desktop */}
+          <div className="w-full sm:w-auto bg-red-700 text-white text-xs font-bold px-4 py-2 flex items-center justify-center sm:border-r sm:border-red-600">
+            {region === "mn" ? "Miền Nam" : region === "mt" ? "Miền Trung" : "Miền Bắc"}
+          </div>
+          {/* Day-of-week tabs — evenly spread, wrap to 2nd row on mobile */}
+          <div className="w-full sm:flex-1 flex border-t border-gray-100 sm:border-t-0">
+            {DAY_TABS.map(({ dow, label }) => {
+              const tabDate = getMostRecentDateOfDay(dow);
+              const isToday = tabDate === getTodayIso();
+              // Highlight by day-of-week so fallback dates still highlight the right tab
+              const isActive = dow === activeDow && (isDateMode ? true : isToday);
+              return (
+                <button
+                  key={dow}
+                  onClick={() => handleDateChange(isToday ? "" : tabDate)}
+                  className={`flex-1 py-2 text-xs font-bold transition-all border-r border-gray-100 last:border-r-0 ${
+                    isActive
+                      ? "bg-red-100 text-red-700 border-b-2 border-red-600"
+                      : "text-gray-600 hover:bg-red-50 hover:text-red-700"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
       {/* ---- Countdown timer — full width row on mobile ---- */}
       <div className="mb-3">
@@ -750,43 +811,44 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
         <div className="lg:col-span-2">
           <div className="bg-white rounded-xl shadow-md overflow-hidden">
 
-            {/* Panel header */}
-            <div className="bg-red-700 px-4 py-2.5 flex items-center gap-2">
-              <div className="flex-1 min-w-0">
-                <div className="text-white font-extrabold text-sm leading-tight truncate">
-                  XSKT {REGION_NAMES[region]}
-                </div>
-                <div className="text-red-200 text-xs mt-0.5">
-                  Ngày {isDateMode && selectedDate ? isoToVN(selectedDate) : (drawDate ?? today)}
-                </div>
+            {/* Dark red centered title bar */}
+            <div className="bg-red-800 px-3 py-3 flex items-center gap-2">
+              {/* Left spacer — mirrors badge width to keep title visually centered */}
+              <div className="w-20 flex-shrink-0" />
+              <div className="flex-1 text-white font-extrabold text-sm text-center leading-tight">
+                {REGION_CODES[region]} - Xổ số {region === "mn" ? "miền Nam" : region === "mt" ? "miền Trung" : "miền Bắc"} {activeDowText}
               </div>
-              <div className="flex-shrink-0">
+              <div className="w-20 flex-shrink-0 flex justify-end">
                 {currentLoading && (
-                  <span className="bg-yellow-400 text-red-800 text-xs font-bold px-2.5 py-1 rounded-full animate-pulse whitespace-nowrap">
+                  <span className="bg-yellow-400 text-red-800 text-xs font-bold px-2 py-1 rounded-full animate-pulse whitespace-nowrap">
                     ĐANG TẢI
                   </span>
                 )}
                 {!currentLoading && isLive && (
-                  <span className="bg-green-400 text-white text-xs font-bold px-2.5 py-1 rounded-full animate-pulse whitespace-nowrap">
+                  <span className="bg-green-400 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse whitespace-nowrap">
                     ● LIVE
                   </span>
                 )}
                 {!currentLoading && !isLive && isLiveWithTodayData && (
-                  <span className="bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-full animate-pulse whitespace-nowrap">
+                  <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse whitespace-nowrap">
                     ● TRỰC TIẾP
                   </span>
                 )}
-                {!currentLoading && displayStations.length > 0 && !isLive && !isLiveWithTodayData && (
-                  <span className="bg-green-500 text-white text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap">
+                {!currentLoading && displayStations.length > 0 && !isLive && !isLiveWithTodayData && (isDateMode || isDrawComplete) && (
+                  <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap">
                     ● KẾT QUẢ
                   </span>
                 )}
               </div>
             </div>
 
-            {/* Region tabs */}
-            <div className="px-3 pt-3">
-              <RegionTabs active={region} onChange={handleRegionChange} />
+            {/* Beige breadcrumb row */}
+            <div className="bg-amber-50 px-4 py-1.5 border-b border-amber-200 text-xs text-gray-600">
+              <span className="text-blue-600 font-semibold">{REGION_CODES[region]}</span>
+              {" » "}
+              <span className="text-blue-600">{REGION_CODES[region]} {activeDowText}</span>
+              {" » "}
+              <span className="text-gray-700">{REGION_CODES[region]} ngày {breadcrumbDate}</span>
             </div>
 
             {/* ---- Action toolbar ---- */}
@@ -870,7 +932,48 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
                           ? (isLive ? mbComplete : !isLiveWithTodayData)
                           : !isLiveWithTodayData}
                         isLivePolling={isLiveWithTodayData && !isLive}
+                        digitMode={digitMode}
                       />
+
+                      {/* ── Digit mode selector ── */}
+                      <div className="flex items-center justify-between mt-2 mb-1 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                        <div className="flex items-center gap-4 text-sm text-gray-700">
+                          {(["full", "2so", "3so"] as const).map((m) => {
+                            const label = m === "full" ? "Đầy đủ" : m === "2so" ? "2 số" : "3 số";
+                            return (
+                              <label key={m} className="flex items-center gap-1.5 cursor-pointer select-none">
+                                <input
+                                  type="radio"
+                                  name="digit-mode"
+                                  checked={digitMode === m}
+                                  onChange={() => setDigitMode(m)}
+                                  className="accent-orange-500 w-4 h-4"
+                                />
+                                <span className={digitMode === m ? "font-bold text-orange-600" : ""}>{label}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                        <button
+                          onClick={() => setMuted((v) => !v)}
+                          title={muted ? "Bật âm thanh" : "Tắt âm thanh"}
+                          className="text-gray-400 hover:text-red-600 transition-colors p-1"
+                        >
+                          {muted ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M16.5 12A4.5 4.5 0 0 0 14 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.78 8.78 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25A6.97 6.97 0 0 1 14 18.99v2.06A8.99 8.99 0 0 0 17.54 19l1.73 1.73L20.73 19 4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+                            </svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+
+                      <div className="mt-1">
+                        <LotoGrid hitNumbers={loNumbers} muted={muted} />
+                      </div>
                       <LoDauDuoiTable stations={displayStations} />
                     </>
                   ) : !currentError ? (
@@ -1007,11 +1110,9 @@ export default function LotteryPage({ initialRegion = "mb" }: { initialRegion?: 
           </div>
         </div>
 
-        {/* Right: LotoGrid + info */}
+        {/* Right: info panel */}
         <div className="lg:col-span-1">
-          <LotoGrid hitNumbers={loNumbers} />
-
-          <div className="mt-4 bg-white rounded-xl border border-red-200 shadow p-4 text-sm text-gray-600">
+          <div className="bg-white rounded-xl border border-red-200 shadow p-4 text-sm text-gray-600">
             <h4 className="font-bold text-red-700 mb-2">Thông Tin</h4>
             <ul className="space-y-1 text-xs">
               <li className="flex justify-between">
