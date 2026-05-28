@@ -1,23 +1,26 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { cached } from "@/lib/dbCache";
 import SiteHeader from "@/app/components/SiteHeader";
 import SiteFooter from "@/app/components/SiteFooter";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 export const metadata = {
   title: "Tuyển Dụng",
   description: "Cơ hội việc làm tại hệ thống đại lý vé số",
 };
 
-async function getData() {
-  try {
-    const [jobs, storeInfo] = await Promise.all([
-      prisma.jobPosting.findMany({ where: { visible: true }, orderBy: { sortOrder: "asc" } }),
-      prisma.storeInfo.findUnique({ where: { id: "main" } }),
-    ]);
-    return { jobs, storeInfo };
-  } catch { return { jobs: [], storeInfo: null }; }
+function getData() {
+  return cached("tuyen-dung-data", async () => {
+    try {
+      const [jobs, storeInfo] = await Promise.all([
+        prisma.jobPosting.findMany({ where: { visible: true }, orderBy: { sortOrder: "asc" } }),
+        prisma.storeInfo.findUnique({ where: { id: "main" } }),
+      ]);
+      return { jobs, storeInfo };
+    } catch { return { jobs: [], storeInfo: null }; }
+  });
 }
 
 export default async function TuyenDungPage() {

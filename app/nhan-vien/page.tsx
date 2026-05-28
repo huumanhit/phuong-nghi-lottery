@@ -1,23 +1,26 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
+import { cached } from "@/lib/dbCache";
 import SiteHeader from "@/app/components/SiteHeader";
 import SiteFooter from "@/app/components/SiteFooter";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 export const metadata = {
   title: "Đội Ngũ Nhân Viên",
   description: "Danh sách nhân viên của chúng tôi",
 };
 
-async function getEmployees() {
-  try {
-    return await prisma.employee.findMany({
-      where: { visible: true },
-      orderBy: { sortOrder: "asc" },
-    });
-  } catch { return []; }
+function getEmployees() {
+  return cached("employees-list", async () => {
+    try {
+      return await prisma.employee.findMany({
+        where: { visible: true },
+        orderBy: { sortOrder: "asc" },
+      });
+    } catch { return []; }
+  });
 }
 
 export default async function NhanVienPage() {

@@ -1,29 +1,27 @@
-import Image from "next/image";
+﻿import Image from "next/image";
 import Link from "next/link";
-import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { cached } from "@/lib/dbCache";
 import SiteHeader from "@/app/components/SiteHeader";
 import SiteFooter from "@/app/components/SiteFooter";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 export const metadata = {
   title: "Hình Ảnh",
   description: "Thư viện hình ảnh hoạt động của hệ thống đại lý",
 };
 
-const getImages = unstable_cache(
-  async () => {
+function getImages() {
+  return cached("gallery-images", async () => {
     try {
       return await prisma.galleryImage.findMany({
         where: { visible: true },
         orderBy: { sortOrder: "asc" },
       });
     } catch { return []; }
-  },
-  ["gallery-images"],
-  { revalidate: 3600, tags: ["gallery"] }
-);
+  });
+}
 
 export default async function HinhAnhPage() {
   const images = await getImages();

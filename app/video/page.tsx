@@ -1,29 +1,27 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import Image from "next/image";
-import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { cached } from "@/lib/dbCache";
 import SiteHeader from "@/app/components/SiteHeader";
 import SiteFooter from "@/app/components/SiteFooter";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 export const metadata = {
   title: "Video",
   description: "Kênh video của hệ thống đại lý vé số",
 };
 
-const getVideos = unstable_cache(
-  async () => {
+function getVideos() {
+  return cached("videos", async () => {
     try {
       return await prisma.videoItem.findMany({
         where: { visible: true },
         orderBy: { sortOrder: "asc" },
       });
     } catch { return []; }
-  },
-  ["videos"],
-  { revalidate: 3600, tags: ["videos"] }
-);
+  });
+}
 
 function getYoutubeId(url: string): string | null {
   const patterns = [

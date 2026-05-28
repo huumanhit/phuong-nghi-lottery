@@ -1,29 +1,27 @@
-import Image from "next/image";
+﻿import Image from "next/image";
 import Link from "next/link";
-import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { cached } from "@/lib/dbCache";
 import SiteHeader from "@/app/components/SiteHeader";
 import SiteFooter from "@/app/components/SiteFooter";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 export const metadata = {
   title: "Hoạt Động Xã Hội",
   description: "Các hoạt động xã hội và từ thiện của hệ thống đại lý vé số",
 };
 
-const getArticles = unstable_cache(
-  async () => {
+function getArticles() {
+  return cached("articles-hoat-dong-xa-hoi", async () => {
     try {
       return await prisma.article.findMany({
         where: { visible: true, category: "hoat-dong-xa-hoi" },
         orderBy: [{ sortOrder: "asc" }, { publishedAt: "desc" }],
       });
     } catch { return []; }
-  },
-  ["articles-hoat-dong-xa-hoi"],
-  { revalidate: 3600, tags: ["articles"] }
-);
+  });
+}
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);

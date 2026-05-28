@@ -1,6 +1,6 @@
-import Image from "next/image";
-import { unstable_cache } from "next/cache";
+﻿import Image from "next/image";
 import { prisma } from "@/lib/prisma";
+import { cached } from "@/lib/dbCache";
 import DealerFilter from "./DealerFilter";
 import SiteHeader from "@/app/components/SiteHeader";
 import SiteFooter from "@/app/components/SiteFooter";
@@ -10,8 +10,8 @@ type DealerPointRow = { id: string; city: string; pointType: string; name: strin
 type NewsItemRow     = { id: string; title: string; imageUrl: string; linkUrl: string; sortOrder: number; visible: boolean };
 type LandingSectionRow = { id: string; title: string; content: string; imageUrl: string; sortOrder: number; visible: boolean };
 
-const getData = unstable_cache(
-  async () => {
+function getData() {
+  return cached("dai-ly-data", async () => {
     try {
       const p = prisma as any; // eslint-disable-line @typescript-eslint/no-explicit-any
       const [storeInfo, sections, dealerPoints, newsItems] = await Promise.all([
@@ -29,12 +29,10 @@ const getData = unstable_cache(
     } catch {
       return { storeInfo: null, sections: [] as LandingSectionRow[], dealerPoints: [] as DealerPointRow[], newsItems: [] as NewsItemRow[] };
     }
-  },
-  ["dai-ly-data"],
-  { revalidate: 3600, tags: ["dealer-points", "store-info"] }
-);
+  });
+}
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 export async function generateMetadata() {
   const { storeInfo } = await getData();
