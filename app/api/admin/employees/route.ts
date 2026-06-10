@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { verifyAdminToken, COOKIE_NAME } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
+import { invalidate } from "@/lib/dbCache";
 
 export const dynamic = "force-dynamic";
 
@@ -35,5 +36,6 @@ export async function POST(req: NextRequest) {
     },
   });
   revalidatePath("/nhan-vien");
+  invalidate("employee");
   return NextResponse.json(item, { status: 201 });
 }

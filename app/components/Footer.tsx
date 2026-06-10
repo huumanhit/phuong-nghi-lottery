@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { parseAddresses } from "@/lib/addressUtils";
 
 const SERVICES_LINKS = [
   { label: "Kết Quả Xổ Số Miền Nam",    href: "/?region=mn"   },
@@ -193,7 +194,9 @@ export default function Footer() {
               <span className="text-yellow-300 flex-shrink-0 mt-0.5">📍</span>
               <div>
                 <p className="text-red-200 font-semibold uppercase tracking-wide text-[10px]">Địa Chỉ</p>
-                <p className="text-white leading-relaxed">{info.address1}</p>
+                {parseAddresses(info.address1).map((addr, idx) => (
+                  <p key={idx} className="text-white leading-relaxed">{addr}</p>
+                ))}
               </div>
             </li>
           </ul>

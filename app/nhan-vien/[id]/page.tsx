@@ -4,14 +4,39 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import SiteHeader from "@/app/components/SiteHeader";
 import SiteFooter from "@/app/components/SiteFooter";
+import { cached } from "@/lib/dbCache";
+
+async function getEmployee(id: string) {
+  return cached(`employee-profile-${id}`, async () => {
+    try {
+      return await prisma.employee.findUnique({ where: { id } });
+    } catch {
+      return null;
+    }
+  });
+}
 
 export const revalidate = 3600;
 
 type Props = { params: { id: string } };
 
+export async function generateStaticParams() {
+  try {
+    const employees = await prisma.employee.findMany({
+      where: { visible: true },
+      select: { id: true },
+    });
+    return employees.map((emp) => ({
+      id: emp.id,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export async function generateMetadata({ params }: Props) {
   try {
-    const employee = await prisma.employee.findUnique({ where: { id: params.id } });
+    const employee = await getEmployee(params.id);
     if (!employee || !employee.visible) return { title: "Nhân viên" };
     return {
       title: `${employee.name} — ${employee.position}`,
@@ -25,7 +50,7 @@ export async function generateMetadata({ params }: Props) {
 export default async function EmployeeProfilePage({ params }: Props) {
   let employee;
   try {
-    employee = await prisma.employee.findUnique({ where: { id: params.id } });
+    employee = await getEmployee(params.id);
   } catch {
     notFound();
   }

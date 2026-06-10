@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { verifyAdminToken, COOKIE_NAME } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
+import { invalidate } from "@/lib/dbCache";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     const item = await prisma.employee.update({ where: { id: params.id }, data });
     revalidatePath("/nhan-vien");
     revalidatePath(`/nhan-vien/${params.id}`);
+    invalidate("employee");
     return NextResponse.json(item);
   } catch {
     return NextResponse.json({ error: "Không tìm thấy" }, { status: 404 });
@@ -38,6 +40,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   try {
     await prisma.employee.delete({ where: { id: params.id } });
     revalidatePath("/nhan-vien");
+    revalidatePath(`/nhan-vien/${params.id}`);
+    invalidate("employee");
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Không tìm thấy" }, { status: 404 });

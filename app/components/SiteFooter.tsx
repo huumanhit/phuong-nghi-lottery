@@ -1,13 +1,17 @@
 import Image from "next/image";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { parseAddresses } from "@/lib/addressUtils";
+import { cached } from "@/lib/dbCache";
 
 async function getStoreInfo() {
-  try {
-    return await prisma.storeInfo.findUnique({ where: { id: "main" } });
-  } catch {
-    return null;
-  }
+  return cached("store-info-footer", async () => {
+    try {
+      return await prisma.storeInfo.findUnique({ where: { id: "main" } });
+    } catch {
+      return null;
+    }
+  });
 }
 
 export default async function SiteFooter() {
@@ -21,6 +25,7 @@ export default async function SiteFooter() {
   const address2  = storeInfo?.address2  || "";
   const tagline   = storeInfo?.tagline   || "";
   const logoUrl   = storeInfo?.logoUrl   || "";
+  const addresses = parseAddresses(address1, address2);
 
   return (
     <footer className="bg-gray-900 text-gray-300 py-10 px-4">
@@ -42,8 +47,9 @@ export default async function SiteFooter() {
         <div>
           <h4 className="font-bold text-white mb-3 uppercase text-xs tracking-wider">Thông tin liên hệ</h4>
           <ul className="space-y-2 text-sm">
-            {address1 && <li className="flex gap-2"><span>📍</span>{address1}</li>}
-            {address2 && <li className="flex gap-2"><span>📍</span>{address2}</li>}
+            {addresses.map((addr, idx) => (
+              <li key={idx} className="flex gap-2"><span>📍</span>{addr}</li>
+            ))}
             {phone    && <li className="flex gap-2"><span>📞</span><a href={`tel:${phoneRaw}`} className="text-yellow-400 font-bold hover:underline">{phone}</a></li>}
             {email    && <li className="flex gap-2"><span>✉</span><a href={`mailto:${email}`} className="hover:text-white">{email}</a></li>}
           </ul>

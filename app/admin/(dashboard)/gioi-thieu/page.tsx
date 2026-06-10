@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { parseAddresses } from "@/lib/addressUtils";
 
 const EMPTY_FORM = {
   storeName: "",
@@ -18,6 +19,7 @@ type FormData = typeof EMPTY_FORM;
 
 export default function GioiThieuAdminPage() {
   const [form, setForm] = useState<FormData>(EMPTY_FORM);
+  const [addresses, setAddresses] = useState<string[]>([""]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -45,6 +47,8 @@ export default function GioiThieuAdminPage() {
           openHours: data.openHours ?? "",
           mapEmbedUrl: data.mapEmbedUrl ?? "",
         });
+        const parsed = parseAddresses(data.address1, data.address2);
+        setAddresses(parsed.length > 0 ? parsed : [""]);
         if (data.logoUrl) setLogoPreview(data.logoUrl);
         setLoading(false);
       })
@@ -87,10 +91,16 @@ export default function GioiThieuAdminPage() {
     setSaving(true);
     setError("");
     setSuccess(false);
+    const filteredAddrs = addresses.map((addr) => addr.trim()).filter(Boolean);
+    const payload = {
+      ...form,
+      address1: JSON.stringify(filteredAddrs),
+      address2: "",
+    };
     const res = await fetch("/api/admin/store-info", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     });
     if (res.ok) {
       setSuccess(true);
@@ -188,24 +198,49 @@ export default function GioiThieuAdminPage() {
           />
         </Field>
 
-        <Field label="Địa chỉ 1">
-          <input
-            type="text"
-            value={form.address1}
-            onChange={(e) => set("address1", e.target.value)}
-            placeholder="VD: 25 Phan Văn Hớn, Bà Điểm, Hóc Môn, TP. HCM"
-            className={inputCls}
-          />
-        </Field>
-
-        <Field label="Địa chỉ 2 (tuỳ chọn)">
-          <input
-            type="text"
-            value={form.address2}
-            onChange={(e) => set("address2", e.target.value)}
-            placeholder="VD: 30 Phan Văn Đối, Bà Điểm, Hóc Môn, TP. HCM"
-            className={inputCls}
-          />
+        <Field label="Danh sách địa chỉ">
+          <div className="space-y-3">
+            {addresses.map((addr, idx) => (
+              <div key={idx} className="flex gap-2 items-center">
+                <input
+                  type="text"
+                  value={addr}
+                  onChange={(e) => {
+                    const newAddrs = [...addresses];
+                    newAddrs[idx] = e.target.value;
+                    setAddresses(newAddrs);
+                    setSuccess(false);
+                  }}
+                  placeholder={`Nhập địa chỉ ${idx + 1}`}
+                  className={inputCls}
+                />
+                {addresses.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newAddrs = addresses.filter((_, i) => i !== idx);
+                      setAddresses(newAddrs);
+                      setSuccess(false);
+                    }}
+                    className="p-2 border border-red-200 hover:border-red-300 text-red-600 hover:bg-red-50 rounded-lg transition-all shrink-0 flex items-center justify-center h-[38px] w-[38px]"
+                    title="Xóa địa chỉ"
+                  >
+                    🗑️
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                setAddresses([...addresses, ""]);
+                setSuccess(false);
+              }}
+              className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-bold text-red-700 hover:text-red-800 transition-colors"
+            >
+              <span className="text-sm">➕</span> Thêm địa chỉ mới
+            </button>
+          </div>
         </Field>
 
         <Field label="Số điện thoại">

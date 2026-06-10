@@ -1,8 +1,9 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { cached } from "@/lib/dbCache";
 import SiteHeader from "@/app/components/SiteHeader";
 import SiteFooter from "@/app/components/SiteFooter";
+import { parseAddresses } from "@/lib/addressUtils";
 
 export const revalidate = 3600;
 
@@ -29,6 +30,8 @@ export default async function TuyenDungPage() {
   const phoneRaw = phone.replace(/\s/g, "");
   const email    = storeInfo?.email    || "";
   const address1 = storeInfo?.address1 || "";
+  const address2 = storeInfo?.address2 || "";
+  const addresses = parseAddresses(address1, address2);
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
@@ -152,12 +155,12 @@ export default async function TuyenDungPage() {
             <div className="bg-red-700 rounded-2xl p-6 text-white">
               <h3 className="font-black text-base mb-4">Liên hệ tuyển dụng</h3>
               <div className="space-y-3 text-sm">
-                {address1 && (
-                  <div className="flex gap-2 items-start">
+                {addresses.map((addr, idx) => (
+                  <div key={idx} className="flex gap-2 items-start">
                     <span className="shrink-0">📍</span>
-                    <span className="text-red-100">{address1}</span>
+                    <span className="text-red-100">{addr}</span>
                   </div>
-                )}
+                ))}
                 {phone && (
                   <div className="flex gap-2 items-center">
                     <span className="shrink-0">📞</span>

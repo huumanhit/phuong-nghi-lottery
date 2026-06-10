@@ -1,30 +1,34 @@
 import { prisma } from "@/lib/prisma";
 import SiteHeader from "@/app/components/SiteHeader";
 import SiteFooter from "@/app/components/SiteFooter";
+import { parseAddresses } from "@/lib/addressUtils";
+import { cached } from "@/lib/dbCache";
 
 async function getStoreInfo() {
-  try {
-    let info = await prisma.storeInfo.findUnique({ where: { id: "main" } });
-    if (!info) {
-      info = await prisma.storeInfo.create({
-        data: {
-          id: "main",
-          storeName: "Đại Lý Vé Số Phương Nghi",
-          tagline: "Hệ thống phân phối sỉ vé số kiến thiết Miền Nam",
-          description: "",
-          address1: "25 Phan Văn Hớn, Bà Điểm, Hóc Môn, TP. HCM",
-          address2: "30 Phan Văn Đối, Bà Điểm, Hóc Môn, TP. HCM",
-          phone: "0989 007 772",
-          email: "xosophuongnghi@gmail.com",
-          openHours: "",
-          mapEmbedUrl: "",
-        },
-      });
+  return cached("store-info-gioi-thieu", async () => {
+    try {
+      let info = await prisma.storeInfo.findUnique({ where: { id: "main" } });
+      if (!info) {
+        info = await prisma.storeInfo.create({
+          data: {
+            id: "main",
+            storeName: "Đại Lý Vé Số Phương Nghi",
+            tagline: "Hệ thống phân phối sỉ vé số kiến thiết Miền Nam",
+            description: "",
+            address1: "25 Phan Văn Hớn, Bà Điểm, Hóc Môn, TP. HCM",
+            address2: "30 Phan Văn Đối, Bà Điểm, Hóc Môn, TP. HCM",
+            phone: "0989 007 772",
+            email: "xosophuongnghi@gmail.com",
+            openHours: "",
+            mapEmbedUrl: "",
+          },
+        });
+      }
+      return info;
+    } catch {
+      return null;
     }
-    return info;
-  } catch {
-    return null;
-  }
+  });
 }
 
 // Cache 1 giờ — store info hiếm khi thay đổi
@@ -37,6 +41,7 @@ export const metadata = {
 
 export default async function GioiThieuPage() {
   const info = await getStoreInfo();
+  const addresses = parseAddresses(info?.address1 ?? "", info?.address2 ?? "");
 
   return (
     <>
@@ -158,15 +163,14 @@ export default async function GioiThieuPage() {
               <span className="text-2xl">📞</span> Thông Tin Liên Hệ
             </h2>
             <div className="space-y-4">
-              {info?.address1 && (
+              {addresses.length > 0 && (
                 <div className="flex items-start gap-3">
                   <span className="text-red-600 mt-0.5 text-lg shrink-0">📍</span>
                   <div>
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Địa chỉ</p>
-                    <p className="text-gray-800 font-medium">{info.address1}</p>
-                    {info.address2 && (
-                      <p className="text-gray-800 font-medium mt-1">{info.address2}</p>
-                    )}
+                    {addresses.map((addr, idx) => (
+                      <p key={idx} className={`text-gray-800 font-medium ${idx > 0 ? "mt-1" : ""}`}>{addr}</p>
+                    ))}
                   </div>
                 </div>
               )}
