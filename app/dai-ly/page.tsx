@@ -2,6 +2,7 @@ import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { cached } from "@/lib/dbCache";
 import DealerFilter from "./DealerFilter";
+import ChoiceSheet from "./ChoiceSheet";
 import SiteHeader from "@/app/components/SiteHeader";
 import SiteFooter from "@/app/components/SiteFooter";
 import { parseAddresses } from "@/lib/addressUtils";
@@ -57,6 +58,7 @@ export default async function DaiLyPage() {
 
   return (
     <div className="min-h-screen bg-white font-sans">
+      <ChoiceSheet />
       <SiteHeader activeHref="/dai-ly" />
 
       {/* ── Hero Section ── */}
