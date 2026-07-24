@@ -1,64 +1,45 @@
 "use client";
 import { useState, useCallback } from "react";
 import type { LotteryResult, DailyRegionResult } from "../lib/lotteryData";
-import { PRIZE_LABELS, ALL_STATIONS } from "../lib/lotteryData";
-
-// ---------------------------------------------------------------------------
-// Lottery draw schedule — stationId[] per day of week (0 = CN … 6 = T7)
-// ---------------------------------------------------------------------------
-
-const SCHEDULE: Record<number, string[]> = {
-  0: ["ha-noi", "tien-giang", "kien-giang", "da-lat", "kon-tum", "khanh-hoa", "thua-thien-hue"],
-  1: ["ha-noi", "tp-hcm", "dong-thap", "ca-mau", "thua-thien-hue", "phu-yen"],
-  2: ["ha-noi", "ben-tre", "vung-tau", "ba-ria-vung-tau", "bac-lieu", "quang-nam", "dak-lak"],
-  3: ["ha-noi", "dong-nai", "can-tho", "soc-trang", "da-nang", "khanh-hoa"],
-  4: ["ha-noi", "tay-ninh", "an-giang", "binh-thuan", "binh-dinh", "quang-tri", "quang-binh"],
-  5: ["ha-noi", "vinh-long", "binh-duong", "tra-vinh", "gia-lai", "ninh-thuan"],
-  6: ["ha-noi", "tp-hcm", "long-an", "binh-phuoc", "hau-giang", "da-nang", "quang-ngai", "dak-nong"],
-};
-
-const DOW_LABEL = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
-
-function getStationsByDate(dateIso: string) {
-  if (!dateIso) return [];
-  const [y, m, d] = dateIso.split("-").map(Number);
-  const dow = new Date(y, m - 1, d).getDay();
-  const ids = SCHEDULE[dow] ?? [];
-  return ids
-    .map((id) => ALL_STATIONS.find((s) => s.id === id))
-    .filter(Boolean) as typeof ALL_STATIONS;
-}
+import {
+  PRIZE_LABELS,
+  ALL_STATIONS,
+  normalizeStationName,
+  stationSlug,
+  getStationsForDate,
+  getDowLabel,
+} from "../lib/lotteryData";
 
 // ---------------------------------------------------------------------------
 // Win-check logic
 // ---------------------------------------------------------------------------
 
-const PRIZE_ORDER: Array<keyof LotteryResult> = [
-  "special", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth",
-];
-
 // Prize money by region
-const MNMT_PRIZE_MONEY: Partial<Record<keyof LotteryResult, number>> = {
-  special: 2_000_000_000,
-  first:      30_000_000,
-  second:     15_000_000,
-  third:      10_000_000,
-  fourth:      3_000_000,
-  fifth:       1_000_000,
-  sixth:         400_000,
-  seventh:       200_000,
-  eighth:        100_000,
+const MNMT_PRIZE_MONEY: Record<string, number> = {
+  special:     2_000_000_000,
+  special_sub:    50_000_000,
+  first:          30_000_000,
+  second:         15_000_000,
+  third:          10_000_000,
+  consolation:     6_000_000,
+  fourth:          3_000_000,
+  fifth:           1_000_000,
+  sixth:             400_000,
+  seventh:           200_000,
+  eighth:            100_000,
 };
 
-const MB_PRIZE_MONEY: Partial<Record<keyof LotteryResult, number>> = {
-  special: 2_000_000_000,
-  first:      10_000_000,
-  second:       5_000_000,
-  third:        1_000_000,
-  fourth:         400_000,
-  fifth:          200_000,
-  sixth:          100_000,
-  seventh:         40_000,
+const MB_PRIZE_MONEY: Record<string, number> = {
+  special:     2_000_000_000,
+  special_sub:    20_000_000,
+  first:          10_000_000,
+  second:          5_000_000,
+  third:           1_000_000,
+  fourth:            400_000,
+  fifth:             200_000,
+  sixth:             100_000,
+  seventh:            40_000,
+  consolation:        40_000,
 };
 
 function formatMoney(amount: number): string {
@@ -66,21 +47,108 @@ function formatMoney(amount: number): string {
 }
 
 interface WinResult {
-  prizeKey:      keyof LotteryResult;
+  prizeKey:      string;
   prizeLabel:    string;
   matchedNumber: string;
 }
 
-function checkTicket(ticket: string, result: LotteryResult): WinResult | null {
-  for (const key of PRIZE_ORDER) {
-    for (const prizeNum of result[key]) {
-      const n = prizeNum.length;
-      if (n > ticket.length) continue;
-      if (ticket.slice(-n) === prizeNum) {
-        return { prizeKey: key, prizeLabel: PRIZE_LABELS[key], matchedNumber: prizeNum };
+function checkTicket(ticket: string, result: LotteryResult, region: string): WinResult | null {
+  const cleanTicket = ticket.trim().replace(/\D/g, "");
+  if (!cleanTicket) return null;
+
+  // Clean all numbers in result
+  const cleanedResult: Record<string, string[]> = {};
+  for (const [k, v] of Object.entries(result)) {
+    cleanedResult[k] = ((v as string[]) || []).map((num: string) => num.trim().replace(/\D/g, "")).filter(Boolean);
+  }
+
+  const specialNums = cleanedResult["special"] || [];
+
+  if (region !== "mb") {
+    // -----------------------------------------------------------------------
+    // MIỀN NAM & MIỀN TRUNG (Vé 6 chữ số)
+    // -----------------------------------------------------------------------
+    if (cleanTicket.length === 6 && specialNums.length > 0) {
+      const specialNum = specialNums[0];
+
+      if (specialNum.length === 6) {
+        // 1. GIẢI ĐẶC BIỆT (2 TỶ): Trùng khớp cả 6 chữ số
+        if (cleanTicket === specialNum) {
+          return { prizeKey: "special", prizeLabel: "Giải Đặc Biệt", matchedNumber: specialNum };
+        }
+
+        // 2. GIẢI PHỤ ĐẶC BIỆT (50 TRIỆU): Trúng 5 số cuối của Giải Đặc Biệt (chỉ sai số đầu tiên)
+        if (cleanTicket[0] !== specialNum[0] && cleanTicket.slice(1) === specialNum.slice(1)) {
+          return { prizeKey: "special_sub", prizeLabel: "Giải Phụ Đặc Biệt", matchedNumber: specialNum.slice(1) };
+        }
+
+        // 3. Giải Nhất (30M), Giải Nhì (15M), Giải Ba (10M) - So 5 số cuối
+        for (const key of ["first", "second", "third"] as const) {
+          for (const prizeNum of cleanedResult[key] || []) {
+            if (prizeNum.length === 5 && cleanTicket.slice(-5) === prizeNum) {
+              return { prizeKey: key, prizeLabel: PRIZE_LABELS[key] || key, matchedNumber: prizeNum };
+            }
+          }
+        }
+
+        // 4. GIẢI KHUYẾN KHÍCH (6 TRIỆU): Trúng số đầu tiên, sai 1 số duy nhất trong 5 số còn lại của GĐB
+        if (cleanTicket[0] === specialNum[0]) {
+          let diffCount = 0;
+          for (let i = 1; i < 6; i++) {
+            if (cleanTicket[i] !== specialNum[i]) diffCount++;
+          }
+          if (diffCount === 1) {
+            return { prizeKey: "consolation", prizeLabel: "Giải Khuyến Khích", matchedNumber: specialNum };
+          }
+        }
+
+        // 5. Các giải còn lại: Giải Tư (3M), Giải Năm (1M), Giải Sáu (400k), Giải Bảy (200k), Giải Tám (100k)
+        for (const key of ["fourth", "fifth", "sixth", "seventh", "eighth"] as const) {
+          for (const prizeNum of cleanedResult[key] || []) {
+            const n = prizeNum.length;
+            if (n > 0 && n <= cleanTicket.length && cleanTicket.slice(-n) === prizeNum) {
+              return { prizeKey: key, prizeLabel: PRIZE_LABELS[key] || key, matchedNumber: prizeNum };
+            }
+          }
+        }
+
+        return null;
+      }
+    }
+  } else {
+    // -----------------------------------------------------------------------
+    // MIỀN BẮC (Vé 5 chữ số)
+    // -----------------------------------------------------------------------
+    if (cleanTicket.length === 5 && specialNums.length > 0) {
+      const specialNum = specialNums[0];
+      if (specialNum.length === 5 && cleanTicket === specialNum) {
+        return { prizeKey: "special", prizeLabel: "Giải Đặc Biệt", matchedNumber: specialNum };
       }
     }
   }
+
+  // Fallback: Standard suffix checking order
+  const standardOrder = [
+    "special", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth"
+  ];
+
+  for (const key of standardOrder) {
+    for (const prizeNum of cleanedResult[key] || []) {
+      const n = prizeNum.length;
+      if (n > 0 && n <= cleanTicket.length && cleanTicket.slice(-n) === prizeNum) {
+        return { prizeKey: key, prizeLabel: PRIZE_LABELS[key] || key, matchedNumber: prizeNum };
+      }
+    }
+  }
+
+  // Miền Bắc: 2 số cuối trùng 2 số cuối Giải Đặc Biệt (Giải Khuyến Khích MB)
+  if (region === "mb" && cleanTicket.length === 5 && specialNums.length > 0) {
+    const specialNum = specialNums[0];
+    if (specialNum.length === 5 && cleanTicket.slice(-2) === specialNum.slice(-2)) {
+      return { prizeKey: "consolation", prizeLabel: "Giải Khuyến Khích (ĐB)", matchedNumber: specialNum.slice(-2) };
+    }
+  }
+
   return null;
 }
 
@@ -115,7 +183,7 @@ function getDrawTimeLabel(region: string): string {
 // ---------------------------------------------------------------------------
 
 export default function TicketChecker() {
-  const [selectedDate, setSelectedDate]       = useState<string>("");
+  const [selectedDate, setSelectedDate]       = useState<string>(todayIso);
   const [stationId, setStationId]             = useState<string>("");
   const [ticketNumber, setTicketNumber]       = useState<string>("");
   const [loading, setLoading]                 = useState(false);
@@ -124,17 +192,16 @@ export default function TicketChecker() {
   const [winResult, setWinResult]             = useState<WinResult | null>(null);
   const [checked, setChecked]                 = useState(false);
 
-  const availableStations = getStationsByDate(selectedDate);
-  const selectedStation   = availableStations.find((s) => s.id === stationId) ?? null;
+  const availableStations = getStationsForDate(selectedDate);
+  const stationsToDisplay = availableStations.length > 0 ? availableStations : ALL_STATIONS;
+  const selectedStation   = ALL_STATIONS.find((s) => s.id === stationId) ?? null;
   const region            = selectedStation?.region ?? "mn";
 
   // MB = 5 digits, MN/MT = 6 digits
   const requiredDigits = region === "mb" ? 5 : 6;
 
   // Day-of-week label
-  const dowLabel = selectedDate
-    ? DOW_LABEL[new Date(...(selectedDate.split("-").map(Number) as [number, number, number])).getDay()]
-    : null;
+  const dowLabel = getDowLabel(selectedDate);
 
   const handleDateChange = (iso: string) => {
     setSelectedDate(iso);
@@ -181,14 +248,17 @@ export default function TicketChecker() {
       if (data.error && data.stations.length === 0) throw new Error(data.error);
       if (data.stations.length === 0) throw new Error("Không có dữ liệu xổ số cho ngày này");
 
-      // Tên station đã được normalize trong lotteryService (vd: "Hồ Chí Minh" → "TP. HCM")
-      const stationName = selectedStation?.name ?? "";
+      // Match station accurately using slug and normalized name
+      const targetSlug = stationId || (selectedStation ? stationSlug(selectedStation.name) : "");
+      const targetNameNorm = selectedStation ? normalizeStationName(selectedStation.name) : "";
+
       const station =
-        data.stations.find((s) => s.stationName === stationName) ??
-        data.stations.find((s) => s.stationId === stationId) ??
+        data.stations.find((s) => s.stationId === targetSlug) ??
+        data.stations.find((s) => stationSlug(s.stationName) === targetSlug) ??
+        data.stations.find((s) => normalizeStationName(s.stationName) === targetNameNorm) ??
         data.stations[0];
 
-      setWinResult(checkTicket(ticketNumber, station.results));
+      setWinResult(checkTicket(ticketNumber, station.results, region));
       setChecked(true);
     } catch (err) {
       setFetchError(err instanceof Error ? err.message : "Lỗi không xác định");
@@ -199,7 +269,7 @@ export default function TicketChecker() {
 
   const handleReset = () => {
     setTicketNumber("");
-    setSelectedDate("");
+    setSelectedDate(todayIso());
     setStationId("");
     setChecked(false);
     setWinResult(null);
@@ -248,7 +318,7 @@ export default function TicketChecker() {
               />
               {dowLabel && (
                 <p className="mt-1 text-xs font-semibold text-red-600">
-                  {dowLabel} · {availableStations.length} đài xổ hôm nay
+                  {dowLabel} · {availableStations.length > 0 ? `${availableStations.length} đài xổ ngày này` : "Tất cả các đài"}
                 </p>
               )}
             </div>
@@ -262,31 +332,25 @@ export default function TicketChecker() {
                 </span>
               </label>
 
-              {!selectedDate ? (
-                <div className="w-full border-2 border-gray-100 rounded-lg px-4 py-2.5 text-sm text-gray-400 bg-gray-50">
-                  Chọn ngày xổ trước
-                </div>
-              ) : (
-                <select
-                  value={stationId}
-                  onChange={(e) => handleStationChange(e.target.value)}
-                  className="w-full border-2 border-red-200 rounded-lg px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent bg-white"
-                >
-                  <option value="">Chọn đài ({availableStations.length} đài)...</option>
-                  {(["mb", "mt", "mn"] as const).map((r) => {
-                    const group = availableStations.filter((s) => s.region === r);
-                    if (group.length === 0) return null;
-                    const label = r === "mb" ? "Miền Bắc" : r === "mt" ? "Miền Trung" : "Miền Nam";
-                    return (
-                      <optgroup key={r} label={`── ${label} ──`}>
-                        {group.map((s) => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
-                      </optgroup>
-                    );
-                  })}
-                </select>
-              )}
+              <select
+                value={stationId}
+                onChange={(e) => handleStationChange(e.target.value)}
+                className="w-full border-2 border-red-200 rounded-lg px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent bg-white"
+              >
+                <option value="">Chọn đài ({stationsToDisplay.length} đài)...</option>
+                {(["mb", "mt", "mn"] as const).map((r) => {
+                  const group = stationsToDisplay.filter((s) => s.region === r);
+                  if (group.length === 0) return null;
+                  const label = r === "mb" ? "Miền Bắc" : r === "mt" ? "Miền Trung" : "Miền Nam";
+                  return (
+                    <optgroup key={r} label={`── ${label} ──`}>
+                      {group.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </optgroup>
+                  );
+                })}
+              </select>
 
               {selectedStation && (
                 <p className="mt-1 text-xs text-gray-400">
@@ -417,11 +481,29 @@ export default function TicketChecker() {
                   <div className="bg-amber-50 px-5 py-3 text-center border-b border-amber-200">
                     <p className="text-xs text-gray-500 mb-1">Dãy số vé</p>
                     <div className="text-3xl font-extrabold tracking-widest">
-                      <span className="text-gray-400">{prefix}</span>
-                      <span className="text-red-600">{matched}</span>
+                      {winResult.prizeKey === "special_sub" ? (
+                        <>
+                          <span className="text-amber-500 font-bold">{ticketNumber[0]}</span>
+                          <span className="text-red-600">{ticketNumber.slice(1)}</span>
+                        </>
+                      ) : winResult.prizeKey === "consolation" ? (
+                        <span className="text-red-600">{ticketNumber}</span>
+                      ) : (
+                        <>
+                          <span className="text-gray-400">{prefix}</span>
+                          <span className="text-red-600">{matched}</span>
+                        </>
+                      )}
                     </div>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Khớp <span className="font-bold text-red-600">{winResult.matchedNumber}</span> của {winResult.prizeLabel} — {selectedStation?.name} — {isoToVN(selectedDate)}
+                    <p className="text-xs text-gray-500 mt-1">
+                      {winResult.prizeKey === "special_sub" ? (
+                        <>Trúng 5 số cuối <span className="font-bold text-red-600">{winResult.matchedNumber}</span> của Giải Đặc Biệt (Giải Phụ Đặc Biệt / Vé An Ủi)</>
+                      ) : winResult.prizeKey === "consolation" ? (
+                        <>Trúng số đầu và chỉ sai 1 số so với Giải Đặc Biệt (<span className="font-bold text-red-600">{winResult.matchedNumber}</span>)</>
+                      ) : (
+                        <>Khớp <span className="font-bold text-red-600">{winResult.matchedNumber}</span> của {winResult.prizeLabel}</>
+                      )}
+                      {" — "}{selectedStation?.name}{" — "}{isoToVN(selectedDate)}
                     </p>
                   </div>
 

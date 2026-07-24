@@ -46,6 +46,55 @@ export const STATION_SCHEDULE: Record<Region, Record<number, string[]>> = {
   },
 };
 
+export const DOW_LABELS = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+
+export function getDowLabel(dateIso: string): string | null {
+  if (!dateIso) return null;
+  let y = 0, m = 0, d = 0;
+  if (dateIso.includes("-")) {
+    const parts = dateIso.split("-").map(Number);
+    y = parts[0]; m = parts[1]; d = parts[2];
+  } else if (dateIso.includes("/")) {
+    const parts = dateIso.split("/").map(Number);
+    if (parts[2] > 1000) { d = parts[0]; m = parts[1]; y = parts[2]; }
+    else if (parts[0] > 1000) { y = parts[0]; m = parts[1]; d = parts[2]; }
+  }
+  if (!y || !m || !d) return null;
+  const dateObj = new Date(y, m - 1, d);
+  if (isNaN(dateObj.getTime())) return null;
+  return DOW_LABELS[dateObj.getDay()] ?? null;
+}
+
+export function getStationsForDate(dateIso: string): Array<{ id: string; name: string; region: Region }> {
+  if (!dateIso) return [];
+  let y = 0, m = 0, d = 0;
+  if (dateIso.includes("-")) {
+    const parts = dateIso.split("-").map(Number);
+    y = parts[0]; m = parts[1]; d = parts[2];
+  } else if (dateIso.includes("/")) {
+    const parts = dateIso.split("/").map(Number);
+    if (parts[2] > 1000) { d = parts[0]; m = parts[1]; y = parts[2]; }
+    else if (parts[0] > 1000) { y = parts[0]; m = parts[1]; d = parts[2]; }
+  }
+  if (!y || !m || !d) return [];
+  const dateObj = new Date(y, m - 1, d);
+  if (isNaN(dateObj.getTime())) return [];
+
+  const dow = dateObj.getDay();
+  const scheduledNames: string[] = [
+    ...(STATION_SCHEDULE.mb[dow] ?? []),
+    ...(STATION_SCHEDULE.mt[dow] ?? []),
+    ...(STATION_SCHEDULE.mn[dow] ?? []),
+  ];
+
+  return scheduledNames
+    .map((name) => {
+      const norm = normalizeStationName(name);
+      return ALL_STATIONS.find((s) => normalizeStationName(s.name) === norm);
+    })
+    .filter(Boolean) as typeof ALL_STATIONS;
+}
+
 // ---------------------------------------------------------------------------
 // All stations flat list (for TicketChecker dropdown)
 // ---------------------------------------------------------------------------
@@ -93,9 +142,47 @@ export const ALL_STATIONS: Array<{ id: string; name: string; region: Region }> =
   { id: "ba-ria-vung-tau", name: "Bà Rịa - Vũng Tàu", region: "mn" },
 ];
 
+const STATION_ALIASES: Record<string, string> = {
+  // Miền Nam
+  "hồ chí minh": "TP. HCM",
+  "ho chi minh": "TP. HCM",
+  "tp.hcm": "TP. HCM",
+  "tphcm": "TP. HCM",
+  "thành phố hồ chí minh": "TP. HCM",
+  "bà rịa": "Vũng Tàu",
+  "bà rịa - vũng tàu": "Vũng Tàu",
+  "bà rịa vũng tàu": "Vũng Tàu",
+  "br-vt": "Vũng Tàu",
+  "brvt": "Vũng Tàu",
+  "lâm đồng": "Đà Lạt",
+  // Miền Trung
+  "thừa thiên huế": "Thừa Thiên Huế",
+  "tt. huế": "Thừa Thiên Huế",
+  "t.t. huế": "Thừa Thiên Huế",
+  "thừa t. huế": "Thừa Thiên Huế",
+  "tt-huế": "Thừa Thiên Huế",
+  "huế": "Thừa Thiên Huế",
+  "đắc lắc": "Đắk Lắk",
+  "đăk lăk": "Đắk Lắk",
+  "đăk lắc": "Đắk Lắk",
+  "đắc nông": "Đắk Nông",
+  "đăk nông": "Đắk Nông",
+  // Miền Bắc
+  "truyền thống": "Hà Nội",
+  "miền bắc": "Hà Nội",
+  "xsmb": "Hà Nội",
+};
+
+export function normalizeStationName(name: string): string {
+  if (!name) return "";
+  const key = name.trim().toLowerCase();
+  return STATION_ALIASES[key] ?? name.trim();
+}
+
 /** Slugify a Vietnamese station name */
 export function stationSlug(name: string): string {
-  return name
+  const norm = normalizeStationName(name);
+  return norm
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -170,6 +257,8 @@ export function generateMNResult(): LotteryResult {
 
 export const PRIZE_LABELS: Record<string, string> = {
   special: "Giải ĐB",
+  special_sub: "Giải Phụ ĐB",
+  consolation: "Giải Khuyến Khích",
   first: "Giải Nhất",
   second: "Giải Nhì",
   third: "Giải Ba",

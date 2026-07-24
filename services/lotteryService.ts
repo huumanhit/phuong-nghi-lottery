@@ -18,24 +18,8 @@ import {
   STATION_SCHEDULE,
   ALL_STATIONS,
   stationSlug,
+  normalizeStationName,
 } from "@/app/lib/lotteryData";
-
-// ---------------------------------------------------------------------------
-// Station name normalization — RSS feed dùng tên khác với ALL_STATIONS
-// ---------------------------------------------------------------------------
-
-const STATION_NAME_ALIAS: Record<string, string> = {
-  "Hồ Chí Minh":         "TP. HCM",
-  "Ho Chi Minh":          "TP. HCM",
-  "TP.HCM":               "TP. HCM",
-  "TPHCM":                "TP. HCM",
-  "Thành phố Hồ Chí Minh": "TP. HCM",
-  "Lâm Đồng":             "Đà Lạt",
-};
-
-function normalizeStationName(name: string): string {
-  return STATION_NAME_ALIAS[name.trim()] ?? name.trim();
-}
 
 // ---------------------------------------------------------------------------
 // Public types
