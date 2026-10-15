@@ -17,7 +17,8 @@ const MENU_SECTIONS = [
       { label: "Trực Tiếp Xổ Số Miền Bắc",               href: "/?region=mb" },
       { label: "Trực Tiếp Xổ Số Điện Toán Mega 6/45",    href: "/dien-toan/mega-645"  },
       { label: "Trực Tiếp Xổ Số Điện Toán Power 6/55",   href: "/dien-toan/power-655" },
-      { label: "Trực Tiếp Xổ Số Điện Toán Max4D",        href: "/dien-toan/max-4d"    },
+      { label: "Trực Tiếp Xổ Số Điện Toán Max 3D",       href: "/dien-toan/max-3d"    },
+      { label: "Trực Tiếp Xổ Số Điện Toán Max 4D",       href: "/dien-toan/max-4d"    },
     ],
   },
   {
@@ -37,7 +38,8 @@ const MENU_SECTIONS = [
     items: [
       { label: "Kết Quả Vietlott Mega 6/45",  href: "/dien-toan/mega-645"  },
       { label: "Kết Quả Vietlott Power 6/55", href: "/dien-toan/power-655" },
-      { label: "Kết Quả Vietlott Max4D",      href: "/dien-toan/max-4d"    },
+      { label: "Kết Quả Vietlott Max 3D",     href: "/dien-toan/max-3d"    },
+      { label: "Kết Quả Vietlott Max 4D",     href: "/dien-toan/max-4d"    },
     ],
   },
 ];

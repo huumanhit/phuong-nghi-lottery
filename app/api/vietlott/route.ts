@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchVietlottResult, type VietlottGame } from "@/services/vietlottService";
 
-const VALID_GAMES: VietlottGame[] = ["mega-645", "power-655", "max-4d"];
+const VALID_GAMES: VietlottGame[] = ["mega-645", "power-655", "max-3d", "max-4d"];
 
 export async function GET(req: NextRequest) {
   const game = req.nextUrl.searchParams.get("game") as VietlottGame | null;

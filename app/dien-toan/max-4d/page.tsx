@@ -1,5 +1,6 @@
 import HeaderWrapper from "@/app/components/HeaderWrapper";
 import VietlottPage from "@/app/components/VietlottPage";
+import { fetchVietlottResult } from "@/services/vietlottService";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -7,12 +8,15 @@ export const metadata: Metadata = {
   description: "Kết quả xổ số điện toán Vietlott Max 4D mới nhất hôm nay, kỳ quay.",
 };
 
-export default function Max4DPage() {
+export const revalidate = 300;
+
+export default async function Max4DPage() {
+  const initialResult = await fetchVietlottResult("max-4d");
   return (
     <>
       <HeaderWrapper />
       <main className="bg-gray-50 min-h-screen">
-        <VietlottPage game="max-4d" />
+        <VietlottPage game="max-4d" initialResult={initialResult} />
       </main>
     </>
   );

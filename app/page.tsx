@@ -13,7 +13,7 @@ const DRAW_ITEMS = [
   { label: "MIỀN TRUNG", time: "17:15", href: "/?region=mt", color: "bg-blue-600"  },
   { label: "MIỀN BẮC",  time: "18:15", href: "/?region=mb", color: "bg-red-600"   },
   { label: "POWER 6/55", time: "18:00", href: "/dien-toan/power-655", color: "bg-purple-600" },
-  { label: "MAX 3D",    time: "18:30", href: "/dien-toan/max-4d",    color: "bg-orange-600" },
+  { label: "MAX 3D",    time: "18:00", href: "/dien-toan/max-3d",    color: "bg-orange-600" },
 ];
 
 function LiveCountdownRow() {

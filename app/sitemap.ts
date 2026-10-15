@@ -107,6 +107,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.6,
     },
     {
+      url: `${siteUrl}/dien-toan/max-3d`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.6,
+    },
+    {
       url: `${siteUrl}/dien-toan/max-4d`,
       lastModified: new Date(),
       changeFrequency: "weekly",

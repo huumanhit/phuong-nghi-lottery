@@ -17,6 +17,7 @@ const PAGE_LABELS: Record<string, string> = {
   "/gioi-thieu": "Giới Thiệu",
   "/dien-toan/mega-645": "Mega 6/45",
   "/dien-toan/power-655": "Power 6/55",
+  "/dien-toan/max-3d": "Max 3D",
   "/dien-toan/max-4d": "Max4D",
 };
 
